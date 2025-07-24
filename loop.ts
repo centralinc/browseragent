@@ -6,7 +6,7 @@ import { ToolCollection, DEFAULT_TOOL_VERSION, TOOL_GROUPS_BY_VERSION, type Tool
 import { responseToParams, maybeFilterToNMostRecentImages, injectPromptCaching, PROMPT_CACHING_BETA_FLAG } from './utils/message-processing';
 import { makeApiToolResult } from './utils/tool-results';
 import { ComputerTool20241022, ComputerTool20250124 } from './tools/computer';
-import type { ActionParams } from './tools/types/computer';
+import { PlaywrightTool } from './tools/playwright';
 import { Action } from './tools/types/computer';
 
 // System prompt optimized for the environment
@@ -19,10 +19,31 @@ const SYSTEM_PROMPT = `<SYSTEM_CAPABILITY>
 * Either that, or make sure you scroll down to see everything before deciding something isn't available.
 * When using your computer function calls, they take a while to run and send back to you.
 * Where possible/feasible, try to chain multiple of these calls all into one function calls request.
-* The current date is ${DateTime.now().toFormat('EEEE, MMMM d, yyyy')}.
-* After each step, take a screenshot and carefully evaluate if you have achieved the right outcome.
-* Explicitly show your thinking: "I have evaluated step X..." If not correct, try again.
-* Only when you confirm a step was executed correctly should you move on to the next one.
+* The current date is ${DateTime.now().toFormat('EEEE, MMMM d, yyyy')}
+
+PLAYWRIGHT TOOL:
+* You have access to a 'playwright' tool that provides browser automation capabilities
+* Currently supports the 'extract_url' method for extracting URLs from page elements
+
+HOW TO USE EXTRACT_URL:
+1. First, take a screenshot to see what's on the page
+2. Identify the visible text of the link/button you want to extract the URL from
+3. Call the playwright tool with this exact format:
+   {
+     "name": "playwright",
+     "input": {
+       "method": "extract_url",
+       "args": ["exact visible text here"]
+     }
+   }
+4. The tool will find the element containing that text and extract its URL
+
+EXAMPLES:
+- To get URL from a link that says "Read more": args: ["Read more"]
+- To get URL from a story titled "New AI breakthrough": args: ["New AI breakthrough"]
+- To get URL from a button labeled "Download PDF": args: ["Download PDF"]
+
+IMPORTANT: Always use the EXACT text you can see on the page as the argument
 </SYSTEM_CAPABILITY>
 
 <IMPORTANT>
@@ -41,7 +62,9 @@ interface ExtraBodyConfig {
 }
 
 interface ToolUseInput extends Record<string, unknown> {
-  action: Action;
+  action?: Action;
+  method?: string;
+  args?: string[];
 }
 
 export async function samplingLoop({
@@ -69,8 +92,16 @@ export async function samplingLoop({
 }): Promise<BetaMessageParam[]> {
   const selectedVersion = toolVersion || DEFAULT_TOOL_VERSION;
   const toolGroup = TOOL_GROUPS_BY_VERSION[selectedVersion];
-  const toolCollection = new ToolCollection(...toolGroup.tools.map((Tool: typeof ComputerTool20241022 | typeof ComputerTool20250124) => new Tool(playwrightPage)));
   
+  // Create computer tools
+  const computerTools = toolGroup.tools.map((Tool: typeof ComputerTool20241022 | typeof ComputerTool20250124) => new Tool(playwrightPage));
+  
+  // Create playwright tool
+  const playwrightTool = new PlaywrightTool(playwrightPage);
+  
+  // Combine all tools
+  const toolCollection = new ToolCollection(...computerTools, playwrightTool);
+
   const system: BetaTextBlock = {
     type: 'text',
     text: `${SYSTEM_PROMPT}${systemPromptSuffix ? ' ' + systemPromptSuffix : ''}`,
@@ -124,6 +155,9 @@ export async function samplingLoop({
     
     const loggableContent = responseParams.map(block => {
       if (block.type === 'tool_use') {
+        // Deep log the full input including arrays
+        console.log(`\n=== TOOL USE: ${block.name} ===`);
+        console.log('Full input:', JSON.stringify(block.input, null, 2));
         return {
           type: 'tool_use',
           name: block.name,
@@ -153,27 +187,19 @@ export async function samplingLoop({
     for (const contentBlock of responseParams) {
       if (contentBlock.type === 'tool_use' && contentBlock.name && contentBlock.input && typeof contentBlock.input === 'object') {
         const input = contentBlock.input as ToolUseInput;
-        if ('action' in input && typeof input.action === 'string') {
-          hasToolUse = true;
-          const toolInput: ActionParams = {
-            action: input.action as Action,
-            ...Object.fromEntries(
-              Object.entries(input).filter(([key]) => key !== 'action')
-            )
-          };
-          
-          try {
-            const result = await toolCollection.run(
-              contentBlock.name,
-              toolInput
-            );
+        hasToolUse = true;
+        
+        try {
+          const result = await toolCollection.run(
+            contentBlock.name,
+            input
+          );
 
-            const toolResult = makeApiToolResult(result, contentBlock.id!);
-            toolResultContent.push(toolResult);
-          } catch (error) {
+          const toolResult = makeApiToolResult(result, contentBlock.id!);
+          toolResultContent.push(toolResult);
+        } catch (error) {
             console.error(error);
             throw error;
-          }
         }
       }
     }

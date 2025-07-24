@@ -20,13 +20,9 @@ export enum Action {
   CURSOR_POSITION = 'cursor_position',
   SCROLL = 'scroll',
   WAIT = 'wait',
+  EXTRACT_URL = 'extract_url',
 }
 
-// For backward compatibility
-export type Action_20241022 = Action;
-export type Action_20250124 = Action;
-
-export type MouseButton = 'left' | 'right' | 'middle';
 export type ScrollDirection = 'up' | 'down' | 'left' | 'right';
 export type Coordinate = [number, number];
 export type Duration = number;
@@ -36,29 +32,15 @@ export interface ActionParams {
   text?: string;
   coordinate?: Coordinate;
   scrollDirection?: ScrollDirection;
-  scroll_amount?: number;
   scrollAmount?: number;
+  scroll_amount?: number;
   duration?: Duration;
-  key?: string;
+  // Allow additional properties for compatibility
   [key: string]: Action | string | Coordinate | ScrollDirection | number | Duration | undefined;
-}
-
-export interface ToolResult {
-  output?: string;
-  error?: string;
-  base64Image?: string;
-  system?: string;
 }
 
 export interface BaseAnthropicTool {
   name: string;
   apiType: string;
-  toParams(): ActionParams;
-}
-
-export class ToolError extends Error {
-  constructor(message: string) {
-    super(message);
-    this.name = 'ToolError';
-  }
+  toParams(): Record<string, unknown>;
 } 
