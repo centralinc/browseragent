@@ -1,6 +1,66 @@
 # Computer Use Playwright SDK
 
+> **Fork Notice**: This is a fork of [@onkernel/cu-playwright-ts](https://github.com/onkernel/cu-playwright-ts) with additional custom features.
+
 A TypeScript SDK that combines Anthropic's Computer Use capabilities with Playwright for browser automation tasks. This SDK provides a clean, type-safe interface for automating browser interactions using Claude's computer use abilities.
+
+## 🆕 Additional Features in This Fork
+
+This fork extends the original SDK with powerful new capabilities:
+
+### 🔗 URL Extraction Tool
+
+This fork includes a powerful custom URL extraction tool that intelligently finds and extracts URLs from elements on the page using visible text. This feature is **unique to this fork** and not available in the original SDK.
+
+#### How It Works
+
+The agent automatically uses the URL extraction tool when you ask for URLs by visible text:
+
+```typescript
+// Simple URL extraction - just ask naturally!
+const url = await agent.execute(
+  'Extract the URL from the "Learn More" link'
+);
+
+// Extract from article titles
+const articleUrl = await agent.execute(
+  'Get the URL from the article titled "Introduction to AI"'
+);
+
+// Extract multiple URLs with structured output
+const urls = await agent.execute(
+  'Extract URLs from the top 3 navigation links',
+  z.array(z.object({
+    linkText: z.string(),
+    url: z.string(),
+  }))
+);
+```
+
+#### Advanced Capabilities
+
+**Smart Search Strategies** (prioritized in order):
+1. **Exact text matching** - Finds elements containing the exact visible text
+2. **Partial text matching** - Matches text within larger content blocks
+3. **Anchor tag detection** - Locates `<a>` tags containing the text
+4. **CSS selector fallback** - Direct element selection if text is a valid selector
+5. **Clickable element search** - Finds interactive elements with the text
+6. **URL pattern extraction** - Detects URLs directly within text content
+
+**Technical Features**:
+- **Computer Use optimized** - Works seamlessly with Claude's visual perception
+- **Multiple HTML structures** - Handles complex nested elements and dynamic content
+- **Automatic URL normalization** - Converts relative to absolute URLs
+- **Smart error handling** - Provides helpful feedback when elements aren't found
+- **Logging and debugging** - Built-in console logging for troubleshooting
+
+**Best Practices**:
+- Use the exact visible text you can see on the page
+- For buttons or links, use their label text (e.g., "Download", "Read More", "View Details")
+- For articles or stories, use their title text
+- The tool will automatically handle finding the associated URL
+
+---
 
 ## Features
 
@@ -165,6 +225,8 @@ const result = await agent.execute(
   }
 );
 ```
+
+
 
 ## Environment Setup
 

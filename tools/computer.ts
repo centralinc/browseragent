@@ -1,12 +1,13 @@
 import type { Page } from 'playwright';
-import { Action, ToolError } from './types/computer';
-import type { ActionParams, BaseAnthropicTool, ToolResult } from './types/computer';
+import { Action } from './types/computer';
+import type { ActionParams } from './types/computer';
 import { KeyboardUtils } from './utils/keyboard';
 import { ActionValidator } from './utils/validator';
+import { ToolError, type ToolResult, type ComputerUseTool, type ComputerToolDef } from './types/base';
 
 const TYPING_DELAY_MS = 12;
 
-export class ComputerTool implements BaseAnthropicTool {
+export class ComputerTool implements ComputerUseTool {
   name: 'computer' = 'computer';
   protected page: Page;
   protected _screenshotDelay = 2.0;
@@ -35,6 +36,7 @@ export class ComputerTool implements BaseAnthropicTool {
     Action.CURSOR_POSITION,
     Action.SCROLL,
     Action.WAIT,
+    Action.EXTRACT_URL,
   ]);
 
   constructor(page: Page, version: '20241022' | '20250124' = '20250124') {
@@ -46,7 +48,7 @@ export class ComputerTool implements BaseAnthropicTool {
     return this.version === '20241022' ? 'computer_20241022' : 'computer_20250124';
   }
 
-  toParams(): ActionParams {
+  toParams(): ComputerToolDef {
     const params = {
       name: this.name,
       type: this.apiType,
@@ -177,7 +179,7 @@ export class ComputerTool implements BaseAnthropicTool {
       const scrollDirection = scrollDirectionParam || kwargs.scroll_direction;
       const scrollAmountValue = scrollAmount || scroll_amount;
 
-      if (!scrollDirection || !['up', 'down', 'left', 'right'].includes(scrollDirection)) {
+      if (!scrollDirection || !['up', 'down', 'left', 'right'].includes(scrollDirection as string)) {
         throw new ToolError(`Scroll direction "${scrollDirection}" must be 'up', 'down', 'left', or 'right'`);
       }
       if (typeof scrollAmountValue !== 'number' || scrollAmountValue < 0) {

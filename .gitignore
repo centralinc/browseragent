@@ -36,4 +36,7 @@ coverage/
 # Misc
 .cache/
 .temp/
-.tmp/ 
+.tmp/
+
+# Examples with sensitive data
+example-beam-benefits.ts
