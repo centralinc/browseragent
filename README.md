@@ -62,6 +62,28 @@ const urls = await agent.execute(
 
 ---
 
+### ⚡ Speed Optimizations
+
+Screenshots now capture **~5× faster** and post-action waits are shortened:
+
+| Action                | Old Delay | New Delay |
+|-----------------------|-----------|-----------|
+| Screenshot wait       | 2 s       | 0.3 s     |
+| Post-typing wait      | 0.5 s     | 0.1 s     |
+| Post-scroll wait      | 0.5 s     | 0.1 s     |
+| Mouse move pause      | 0.1 s     | 0.02 s    |
+
+These cut **1-2 seconds** from each multi-step interaction.
+
+> ⚠️  **Heads-up:** Some sites rely on human-like pacing for anti-bot checks. If you encounter captchas or missing render states, increase the delays via the new constructor parameters:
+>
+> ```ts
+> const fastComputer = new ComputerTool(page, '20250124', /* screenshotDelay */ 0.5);
+> // or adjust post-action waits inside ComputerTool if needed
+> ```
+
+---
+
 ### ⏯️ Agent Signals (Pause / Resume / Cancel)
 
 Bring **human-in-the-loop control** to long-running automation workflows.
@@ -179,167 +201,4 @@ async execute<T = string>(
   - **`thinkingBudget`** (number): Token budget for Claude's internal reasoning process. Default: `1024`. See [Extended Thinking documentation](https://docs.anthropic.com/en/docs/build-with-claude/extended-thinking) for details
 
 **Returns:** 
-- `Promise<T>`: When `schema` is provided, returns validated data of type `T`
-- `Promise<string>`: When no `schema` is provided, returns the text response
-
-## Usage Examples
-
-### Text Response
-
-```typescript
-import { ComputerUseAgent } from '@onkernel/cu-playwright-ts';
-
-// Navigate to the target page first
-await page.goto("https://news.ycombinator.com/");
-
-const agent = new ComputerUseAgent({
-  apiKey: process.env.ANTHROPIC_API_KEY!,
-  page,
-});
-
-const result = await agent.execute(
-  'Tell me the title of the top story on this page'
-);
-console.log(result); // "Title of the top story"
-```
-
-### Structured Response with Zod
-
-```typescript
-import { z } from 'zod';
-import { ComputerUseAgent } from '@onkernel/cu-playwright-ts';
-
-const agent = new ComputerUseAgent({
-  apiKey: process.env.ANTHROPIC_API_KEY!,
-  page,
-});
-
-const HackerNewsStory = z.object({
-  title: z.string(),
-  points: z.number(),
-  author: z.string(),
-  comments: z.number(),
-  url: z.string().optional(),
-});
-
-const stories = await agent.execute(
-  'Get the top 5 Hacker News stories with their details',
-  z.array(HackerNewsStory).max(5)
-);
-
-console.log(stories);
-// [
-//   {
-//     title: "Example Story",
-//     points: 150,
-//     author: "user123",
-//     comments: 42,
-//     url: "https://example.com"
-//   },
-//   ...
-// ]
-```
-
-### Advanced Options
-
-```typescript
-const result = await agent.execute(
-  'Complex task requiring more thinking',
-  undefined, // No schema for text response
-  {
-    systemPromptSuffix: 'Be extra careful with form submissions.',
-    thinkingBudget: 4096, // More thinking tokens for complex tasks
-  }
-);
-```
-
-
-
-## Environment Setup
-
-1. **Anthropic API Key**: Set your API key as an environment variable:
-   ```bash
-   export ANTHROPIC_API_KEY=your_api_key_here
-   ```
-
-2. **Playwright**: Install Playwright and browser dependencies:
-   ```bash
-   npx playwright install
-   ```
-
-## Computer Use Parameters
-
-This SDK leverages Anthropic's Computer Use API with the following key parameters:
-
-### Model Selection
-- **Claude 3.5 Sonnet**: Best balance of speed and capability for most tasks
-- **Claude 4 Models**: Enhanced reasoning with extended thinking capabilities
-- **Claude 3.7 Sonnet**: Advanced reasoning with thinking transparency
-
-### Thinking Budget
-The `thinkingBudget` parameter controls Claude's internal reasoning process:
-- **1024 tokens** (default): Suitable for simple tasks
-- **4096+ tokens**: Better for complex reasoning tasks
-- **16k+ tokens**: Recommended for highly complex multi-step operations
-
-See [Anthropic's Extended Thinking guide](https://docs.anthropic.com/en/docs/build-with-claude/extended-thinking#working-with-thinking-budgets) for optimization tips.
-
-## Error Handling
-
-The SDK includes built-in error handling:
-
-```typescript
-try {
-  const result = await agent.execute('Your task here');
-  console.log(result);
-} catch (error) {
-  if (error.message.includes('No response received')) {
-    console.log('Agent did not receive a response from Claude');
-  } else {
-    console.log('Other error:', error.message);
-  }
-}
-```
-
-## Best Practices
-
-1. **Use specific, clear instructions**: "Click the red 'Submit' button" vs "click submit"
-
-2. **For complex tasks, break them down**: Use step-by-step instructions in your query
-
-3. **Optimize thinking budget**: Start with default (1024) and increase for complex tasks
-
-4. **Handle errors gracefully**: Implement proper error handling for production use
-
-5. **Use structured responses**: When you need specific data format, use Zod schemas
-
-6. **Test in headless: false**: During development, run with visible browser to debug
-
-## Security Considerations
-
-⚠️ **Important**: Computer use can interact with any visible application. Always:
-
-- Run in isolated environments (containers/VMs) for production
-- Avoid providing access to sensitive accounts or data
-- Review Claude's actions in logs before production deployment
-- Use allowlisted domains when possible
-
-See [Anthropic's Computer Use Security Guide](https://docs.anthropic.com/en/docs/agents-and-tools/tool-use/computer-use-tool#security-considerations) for detailed security recommendations.
-
-## Requirements
-
-- Node.js 18+
-- TypeScript 5+
-- Playwright 1.52+
-- Anthropic API key
-
-## Related Resources
-
-- [Anthropic Computer Use Documentation](https://docs.anthropic.com/en/docs/agents-and-tools/tool-use/computer-use-tool)
-- [Extended Thinking Guide](https://docs.anthropic.com/en/docs/build-with-claude/extended-thinking)
-- [Playwright Documentation](https://playwright.dev/)
-- [Zod Documentation](https://zod.dev/)
-
-## License
-
-See [License](./LICENSE)
+- `Promise<T>`
