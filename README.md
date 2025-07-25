@@ -62,6 +62,28 @@ const urls = await agent.execute(
 
 ---
 
+### ⚡ Speed Optimizations
+
+Screenshots now capture **~5× faster** and post-action waits are shortened:
+
+| Action                | Old Delay | New Delay |
+|-----------------------|-----------|-----------|
+| Screenshot wait       | 2 s       | 0.3 s     |
+| Post-typing wait      | 0.5 s     | 0.1 s     |
+| Post-scroll wait      | 0.5 s     | 0.1 s     |
+| Mouse move pause      | 0.1 s     | 0.02 s    |
+
+These cut **1-2 seconds** from each multi-step interaction.
+
+> ⚠️  **Heads-up:** Some sites rely on human-like pacing for anti-bot checks. If you encounter captchas or missing render states, increase the delays via the new constructor parameters:
+>
+> ```ts
+> const fastComputer = new ComputerTool(page, '20250124', /* screenshotDelay */ 0.5);
+> // or adjust post-action waits inside ComputerTool if needed
+> ```
+
+---
+
 ### ⏯️ Agent Signals (Pause / Resume / Cancel)
 
 Bring **human-in-the-loop control** to long-running automation workflows.

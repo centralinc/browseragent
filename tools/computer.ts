@@ -10,7 +10,8 @@ const TYPING_DELAY_MS = 12;
 export class ComputerTool implements ComputerUseTool {
   name: 'computer' = 'computer';
   protected page: Page;
-  protected _screenshotDelay = 2.0;
+  // Delay (in seconds) before capturing a screenshot – kept small for faster turnaround
+  protected _screenshotDelay: number;
   protected version: '20241022' | '20250124';
 
   private readonly mouseActions = new Set([
@@ -39,9 +40,14 @@ export class ComputerTool implements ComputerUseTool {
     Action.EXTRACT_URL,
   ]);
 
-  constructor(page: Page, version: '20241022' | '20250124' = '20250124') {
+  constructor(
+    page: Page,
+    version: '20241022' | '20250124' = '20250124',
+    screenshotDelay: number = 0.3, // default 300 ms
+  ) {
     this.page = page;
     this.version = version;
+    this._screenshotDelay = screenshotDelay;
   }
 
   get apiType(): 'computer_20241022' | 'computer_20250124' {
@@ -80,7 +86,7 @@ export class ComputerTool implements ComputerUseTool {
   private async handleMouseAction(action: Action, coordinate: [number, number]): Promise<ToolResult> {
     const [x, y] = ActionValidator.validateAndGetCoordinates(coordinate);
     await this.page.mouse.move(x, y);
-    await this.page.waitForTimeout(100);
+    await this.page.waitForTimeout(20);
 
     if (action === Action.LEFT_MOUSE_DOWN) {
       await this.page.mouse.down();
@@ -97,7 +103,7 @@ export class ComputerTool implements ComputerUseTool {
       }
     }
 
-    await this.page.waitForTimeout(500);
+    await this.page.waitForTimeout(100);
     return await this.screenshot();
   }
 
@@ -119,7 +125,7 @@ export class ComputerTool implements ComputerUseTool {
       await this.page.keyboard.type(text, { delay: TYPING_DELAY_MS });
     }
 
-    await this.page.waitForTimeout(500);
+    await this.page.waitForTimeout(100);
     return await this.screenshot();
   }
 
@@ -127,7 +133,10 @@ export class ComputerTool implements ComputerUseTool {
     try {
       console.log('Starting screenshot...');
       await new Promise(resolve => setTimeout(resolve, this._screenshotDelay * 1000));
-      const screenshot = await this.page.screenshot({ type: 'png' });
+      const screenshot = await this.page.screenshot({
+        type: 'png',
+        fullPage: false, // viewport only for speed
+      });
       console.log('Screenshot taken, size:', screenshot.length, 'bytes');
 
       return {
@@ -206,7 +215,7 @@ export class ComputerTool implements ComputerUseTool {
         await this.page.mouse.wheel(scrollDirection === 'right' ? amount : -amount, 0);
       }
       
-      await this.page.waitForTimeout(500);
+      await this.page.waitForTimeout(100);
       return await this.screenshot();
     }
 
@@ -238,13 +247,13 @@ export class ComputerTool implements ComputerUseTool {
 
 // For backward compatibility
 export class ComputerTool20241022 extends ComputerTool {
-  constructor(page: Page) {
-    super(page, '20241022');
+  constructor(page: Page, screenshotDelay = 0.3) {
+    super(page, '20241022', screenshotDelay);
   }
 }
 
 export class ComputerTool20250124 extends ComputerTool {
-  constructor(page: Page) {
-    super(page, '20250124');
+  constructor(page: Page, screenshotDelay = 0.3) {
+    super(page, '20250124', screenshotDelay);
   }
 }

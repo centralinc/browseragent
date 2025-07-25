@@ -297,7 +297,8 @@ export async function computerUseLoop({
   onlyNMostRecentImages?: number;
   signalBus?: import('./signals/bus').SignalBus;
 }): Promise<BetaMessageParam[]> {
-  return samplingLoop({
+  const startTime = Date.now();
+  const messages = await samplingLoop({
     model,
     systemPromptSuffix,
     messages: [{
@@ -313,4 +314,7 @@ export async function computerUseLoop({
     playwrightPage,
     signalBus,
   });
+  const elapsed = ((Date.now() - startTime) / 1000).toFixed(2);
+  console.log(`⏱️  Agent finished in ${elapsed}s`);
+  return messages;
 }
