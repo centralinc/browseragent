@@ -78,6 +78,7 @@ export async function samplingLoop({
   thinkingBudget,
   tokenEfficientToolsBeta = false,
   playwrightPage,
+  signalBus,
 }: {
   model: string;
   systemPromptSuffix?: string;
@@ -89,6 +90,7 @@ export async function samplingLoop({
   thinkingBudget?: number;
   tokenEfficientToolsBeta?: boolean;
   playwrightPage: Page;
+  signalBus?: import('./signals/bus').SignalBus;
 }): Promise<BetaMessageParam[]> {
   const selectedVersion = toolVersion || DEFAULT_TOOL_VERSION;
   const toolGroup = TOOL_GROUPS_BY_VERSION[selectedVersion];
@@ -107,7 +109,27 @@ export async function samplingLoop({
     text: `${SYSTEM_PROMPT}${systemPromptSuffix ? ' ' + systemPromptSuffix : ''}`,
   };
 
+  let stepIndex = 0;
+
   while (true) {
+    // Check for pause/cancel signals before each step
+    if (signalBus) {
+      signalBus.setStep(stepIndex);
+      
+      if (signalBus.isCancelling()) {
+        console.log('Agent execution was cancelled');
+        break;
+      }
+      
+      if (signalBus.getState() === 'paused') {
+        await signalBus.waitUntilResumed();
+        // Check again after resume in case we were cancelled during pause
+        if (signalBus.isCancelling()) {
+          console.log('Agent execution was cancelled during pause');
+          break;
+        }
+      }
+    }
     const betas: string[] = toolGroup.beta_flag ? [toolGroup.beta_flag] : [];
     
     if (tokenEfficientToolsBeta) {
@@ -181,6 +203,8 @@ export async function samplingLoop({
       return messages;
     }
 
+    stepIndex++;
+
     const toolResultContent = [];
     let hasToolUse = false;
     
@@ -199,6 +223,10 @@ export async function samplingLoop({
           toolResultContent.push(toolResult);
         } catch (error) {
             console.error(error);
+            // Emit error signal if signalBus is available
+            if (signalBus) {
+              signalBus.emitError(error);
+            }
             throw error;
         }
       }
@@ -216,6 +244,9 @@ export async function samplingLoop({
       });
     }
   }
+
+  // This should never be reached, but TypeScript needs it
+  return messages;
 }
 
 /**
@@ -252,6 +283,7 @@ export async function computerUseLoop({
   thinkingBudget = 1024,
   tokenEfficientToolsBeta = false,
   onlyNMostRecentImages,
+  signalBus,
 }: {
   query: string;
   apiKey: string;
@@ -263,6 +295,7 @@ export async function computerUseLoop({
   thinkingBudget?: number;
   tokenEfficientToolsBeta?: boolean;
   onlyNMostRecentImages?: number;
+  signalBus?: import('./signals/bus').SignalBus;
 }): Promise<BetaMessageParam[]> {
   return samplingLoop({
     model,
@@ -278,5 +311,6 @@ export async function computerUseLoop({
     tokenEfficientToolsBeta,
     onlyNMostRecentImages,
     playwrightPage,
+    signalBus,
   });
 }

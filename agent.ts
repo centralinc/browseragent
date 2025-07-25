@@ -2,6 +2,32 @@ import { z } from 'zod';
 import zodToJsonSchema from 'zod-to-json-schema';
 import type { Page } from 'playwright';
 import { computerUseLoop } from './loop';
+import { SignalBus, type ControlSignal, type SignalEvent, type SignalListener } from './signals/bus';
+
+/**
+ * Controller interface for managing agent execution signals
+ */
+export interface AgentController {
+  /** Send a control signal to the running agent */
+  signal(sig: ControlSignal, reason?: string): void;
+  /** Subscribe to signal events - returns unsubscribe function */
+  on<E extends SignalEvent>(event: E, listener: SignalListener<E>): () => void;
+}
+
+/**
+ * Implementation of AgentController that wraps a SignalBus
+ */
+export class AgentControllerImpl implements AgentController {
+  constructor(private readonly bus: SignalBus) {}
+
+  signal(sig: ControlSignal, reason?: string): void {
+    this.bus.send(sig, reason);
+  }
+
+  on<E extends SignalEvent>(event: E, listener: SignalListener<E>): () => void {
+    return this.bus.on(event, listener);
+  }
+}
 
 /**
  * Computer Use Agent for automating browser interactions with Claude
@@ -15,6 +41,10 @@ export class ComputerUseAgent {
   private apiKey: string;
   private model: string;
   private page: Page;
+  private signalBus: SignalBus;
+
+  /** Expose control-flow signals */
+  public readonly controller: AgentController;
 
   /**
    * Create a new ComputerUseAgent instance
@@ -44,6 +74,10 @@ export class ComputerUseAgent {
     this.apiKey = apiKey;
     this.model = model;
     this.page = page;
+
+    // NEW: create the signal bus + controller up-front so callers can pause *during* first run
+    this.signalBus = new SignalBus();
+    this.controller = new AgentControllerImpl(this.signalBus);
   }
 
   /**
@@ -112,6 +146,7 @@ Respond ONLY with the JSON object, no additional text.`;
       model: this.model,
       systemPromptSuffix,
       thinkingBudget,
+      signalBus: this.signalBus,
     });
 
     const lastMessage = messages[messages.length - 1];
