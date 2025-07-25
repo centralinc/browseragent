@@ -13425,7 +13425,8 @@ async function samplingLoop({
   toolVersion,
   thinkingBudget,
   tokenEfficientToolsBeta = false,
-  playwrightPage
+  playwrightPage,
+  signalBus
 }) {
   const selectedVersion = toolVersion || DEFAULT_TOOL_VERSION;
   const toolGroup = TOOL_GROUPS_BY_VERSION[selectedVersion];
@@ -13436,7 +13437,22 @@ async function samplingLoop({
     type: "text",
     text: `${SYSTEM_PROMPT}${systemPromptSuffix ? " " + systemPromptSuffix : ""}`
   };
+  let stepIndex = 0;
   while (true) {
+    if (signalBus) {
+      signalBus.setStep(stepIndex);
+      if (signalBus.isCancelling()) {
+        console.log("Agent execution was cancelled");
+        break;
+      }
+      if (signalBus.getState() === "paused") {
+        await signalBus.waitUntilResumed();
+        if (signalBus.isCancelling()) {
+          console.log("Agent execution was cancelled during pause");
+          break;
+        }
+      }
+    }
     const betas = toolGroup.beta_flag ? [toolGroup.beta_flag] : [];
     if (tokenEfficientToolsBeta) {
       betas.push("token-efficient-tools-2025-02-19");
@@ -13493,6 +13509,7 @@ async function samplingLoop({
       console.log("LLM has completed its task, ending loop");
       return messages;
     }
+    stepIndex++;
     const toolResultContent = [];
     let hasToolUse = false;
     for (const contentBlock of responseParams) {
@@ -13505,6 +13522,9 @@ async function samplingLoop({
           toolResultContent.push(toolResult);
         } catch (error2) {
           console.error(error2);
+          if (signalBus) {
+            signalBus.emitError(error2);
+          }
           throw error2;
         }
       }
@@ -13520,6 +13540,7 @@ async function samplingLoop({
       });
     }
   }
+  return messages;
 }
 async function computerUseLoop({
   query,
@@ -13531,7 +13552,8 @@ async function computerUseLoop({
   toolVersion,
   thinkingBudget = 1024,
   tokenEfficientToolsBeta = false,
-  onlyNMostRecentImages
+  onlyNMostRecentImages,
+  signalBus
 }) {
   return samplingLoop({
     model,
@@ -13546,15 +13568,131 @@ async function computerUseLoop({
     thinkingBudget,
     tokenEfficientToolsBeta,
     onlyNMostRecentImages,
-    playwrightPage
+    playwrightPage,
+    signalBus
   });
 }
 
+// signals/bus.ts
+class SignalBus {
+  state = "running";
+  listeners = new Map;
+  resumePromise = null;
+  resumeResolve = null;
+  abortController = new AbortController;
+  currentStep = 0;
+  constructor() {
+    this.listeners.set("onPause", new Set);
+    this.listeners.set("onResume", new Set);
+    this.listeners.set("onCancel", new Set);
+    this.listeners.set("onError", new Set);
+  }
+  send(signal, reason) {
+    switch (signal) {
+      case "pause":
+        if (this.state === "running") {
+          this.state = "paused";
+        }
+        break;
+      case "resume":
+        if (this.state === "paused") {
+          this.state = "running";
+          if (this.resumeResolve) {
+            this.resumeResolve();
+            this.resumeResolve = null;
+            this.resumePromise = null;
+          }
+          this.emit("onResume", { at: new Date, step: this.currentStep });
+        }
+        break;
+      case "cancel":
+        this.state = "cancelling";
+        this.abortController.abort();
+        this.emit("onCancel", { at: new Date, step: this.currentStep, reason });
+        if (this.resumeResolve) {
+          this.resumeResolve();
+          this.resumeResolve = null;
+          this.resumePromise = null;
+        }
+        break;
+    }
+  }
+  on(event, listener) {
+    const eventListeners = this.listeners.get(event);
+    if (eventListeners) {
+      eventListeners.add(listener);
+    }
+    return () => {
+      const eventListeners2 = this.listeners.get(event);
+      if (eventListeners2) {
+        eventListeners2.delete(listener);
+      }
+    };
+  }
+  emit(event, payload) {
+    const eventListeners = this.listeners.get(event);
+    if (eventListeners) {
+      Promise.allSettled(Array.from(eventListeners).map((listener) => {
+        try {
+          const result = listener(payload);
+          return result instanceof Promise ? result : Promise.resolve();
+        } catch (error2) {
+          return Promise.reject(error2);
+        }
+      })).catch((errors) => {
+        console.error("Error in signal event listeners:", errors);
+      });
+    }
+  }
+  getState() {
+    return this.state;
+  }
+  async waitUntilResumed() {
+    if (this.state !== "paused") {
+      return;
+    }
+    this.emit("onPause", { at: new Date, step: this.currentStep });
+    if (!this.resumePromise) {
+      this.resumePromise = new Promise((resolve) => {
+        this.resumeResolve = resolve;
+      });
+    }
+    return this.resumePromise;
+  }
+  setStep(step) {
+    this.currentStep = step;
+  }
+  getAbortSignal() {
+    return this.abortController.signal;
+  }
+  isCancelling() {
+    return this.state === "cancelling";
+  }
+  emitError(error2) {
+    this.emit("onError", { at: new Date, step: this.currentStep, error: error2 });
+  }
+}
+
 // agent.ts
+class AgentControllerImpl {
+  bus;
+  constructor(bus) {
+    this.bus = bus;
+  }
+  signal(sig, reason) {
+    this.bus.send(sig, reason);
+  }
+  on(event, listener) {
+    return this.bus.on(event, listener);
+  }
+}
+
 class ComputerUseAgent {
   apiKey;
   model;
   page;
+  signalBus;
+  controller;
   constructor({
     apiKey,
     page,
@@ -13563,6 +13701,8 @@ class ComputerUseAgent {
     this.apiKey = apiKey;
     this.model = model;
     this.page = page;
+    this.signalBus = new SignalBus;
+    this.controller = new AgentControllerImpl(this.signalBus);
   }
   async execute(query, schema, options) {
     const { systemPromptSuffix, thinkingBudget } = options ?? {};
@@ -13584,7 +13724,8 @@ Respond ONLY with the JSON object, no additional text.`;
       playwrightPage: this.page,
       model: this.model,
       systemPromptSuffix,
-      thinkingBudget
+      thinkingBudget,
+      signalBus: this.signalBus
     });
     const lastMessage = messages[messages.length - 1];
     if (!lastMessage) {
