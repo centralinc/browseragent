@@ -62,6 +62,33 @@ const urls = await agent.execute(
 
 ---
 
+### ⏯️ Agent Signals (Pause / Resume / Cancel)
+
+Bring **human-in-the-loop control** to long-running automation workflows.
+
+* **Pause** an active `agent.execute()` run to inspect or fix the page
+* **Resume** from the exact step where you left off
+* **Cancel** gracefully without killing the process
+* Real-time events: `onPause`, `onResume`, `onCancel`, `onError`
+
+```typescript
+const agent = new ComputerUseAgent({ apiKey, page });
+
+// Subscribe to events
+agent.controller.on('onPause', ({ step }) => console.log('Paused at', step));
+agent.controller.on('onResume', () => console.log('Resumed'));
+
+// Trigger a pause after 5 s
+setTimeout(() => agent.controller.signal('pause'), 5_000);
+
+// Start a task (the controller is available immediately)
+await agent.execute('Get the titles of the top 10 stories');
+```
+
+Great for debugging, watchdog timeouts, and manual overrides.
+
+---
+
 ## Features
 
 - 🤖 **Simple API**: Single `ComputerUseAgent` class for all computer use tasks
