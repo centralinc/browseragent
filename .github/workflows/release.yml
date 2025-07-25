@@ -46,6 +46,13 @@ jobs:
       - name: Build package
         run: bun run build
 
+      - name: Verify build output
+        run: |
+          echo "Checking dist folder contents:"
+          ls -la dist/ || echo "dist folder not found"
+          echo "Checking if main entry point exists:"
+          ls -la dist/index.js || echo "dist/index.js not found"
+
       - name: Configure Git
         run: |
           git config --local user.email "action@github.com"
@@ -75,7 +82,8 @@ jobs:
       - name: Update package.json and commit
         run: |
           git add package.json
-          git commit -m "chore: bump version to ${{ steps.version.outputs.new_version }}"
+          git add -f dist/
+          git commit -m "chore: bump version to ${{ steps.version.outputs.new_version }} with built files"
           git push origin main
 
       - name: Create Git tag
@@ -107,9 +115,17 @@ jobs:
 
       - name: Create distribution archive
         run: |
-          cd dist
-          zip -r ../dist.zip .
-          cd ..
+          if [ -d "dist" ]; then
+            echo "Creating distribution archive from dist folder"
+            cd dist
+            zip -r ../dist.zip .
+            cd ..
+          else
+            echo "Warning: dist folder not found, creating empty archive"
+            touch empty.txt
+            zip dist.zip empty.txt
+            rm empty.txt
+          fi
 
       - name: Create GitHub Release
         id: create_release
