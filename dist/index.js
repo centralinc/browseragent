@@ -12841,7 +12841,7 @@ var TYPING_DELAY_MS = 12;
 class ComputerTool {
   name = "computer";
   page;
-  _screenshotDelay = 2;
+  _screenshotDelay;
   version;
   mouseActions = new Set([
     "left_click" /* LEFT_CLICK */,
@@ -12866,9 +12866,10 @@ class ComputerTool {
     "wait" /* WAIT */,
     "extract_url" /* EXTRACT_URL */
   ]);
-  constructor(page, version = "20250124") {
+  constructor(page, version = "20250124", screenshotDelay = 0.3) {
     this.page = page;
     this.version = version;
+    this._screenshotDelay = screenshotDelay;
   }
   get apiType() {
     return this.version === "20241022" ? "computer_20241022" : "computer_20250124";
@@ -12903,7 +12904,7 @@ class ComputerTool {
   async handleMouseAction(action, coordinate) {
     const [x, y] = ActionValidator.validateAndGetCoordinates(coordinate);
     await this.page.mouse.move(x, y);
-    await this.page.waitForTimeout(100);
+    await this.page.waitForTimeout(20);
     if (action === "left_mouse_down" /* LEFT_MOUSE_DOWN */) {
       await this.page.mouse.down();
     } else if (action === "left_mouse_up" /* LEFT_MOUSE_UP */) {
@@ -12918,7 +12919,7 @@ class ComputerTool {
         await this.page.mouse.click(x, y, { button });
       }
     }
-    await this.page.waitForTimeout(500);
+    await this.page.waitForTimeout(100);
     return await this.screenshot();
   }
   async handleKeyboardAction(action, text, duration) {
@@ -12938,14 +12939,17 @@ class ComputerTool {
     } else {
       await this.page.keyboard.type(text, { delay: TYPING_DELAY_MS });
     }
-    await this.page.waitForTimeout(500);
+    await this.page.waitForTimeout(100);
     return await this.screenshot();
   }
   async screenshot() {
     try {
       console.log("Starting screenshot...");
       await new Promise((resolve) => setTimeout(resolve, this._screenshotDelay * 1000));
-      const screenshot = await this.page.screenshot({ type: "png" });
+      const screenshot = await this.page.screenshot({
+        type: "png",
+        fullPage: false
+      });
       console.log("Screenshot taken, size:", screenshot.length, "bytes");
       return {
         base64Image: screenshot.toString("base64")
@@ -13010,7 +13014,7 @@ class ComputerTool {
         const amount = pageDimensions.w * scrollFactor;
         await this.page.mouse.wheel(scrollDirection === "right" ? amount : -amount, 0);
       }
-      await this.page.waitForTimeout(500);
+      await this.page.waitForTimeout(100);
       return await this.screenshot();
     }
     if (action === "wait" /* WAIT */) {
@@ -13037,14 +13041,14 @@ class ComputerTool {
 }
 
 class ComputerTool20241022 extends ComputerTool {
-  constructor(page) {
-    super(page, "20241022");
+  constructor(page, screenshotDelay = 0.3) {
+    super(page, "20241022", screenshotDelay);
   }
 }
 
 class ComputerTool20250124 extends ComputerTool {
-  constructor(page) {
-    super(page, "20250124");
+  constructor(page, screenshotDelay = 0.3) {
+    super(page, "20250124", screenshotDelay);
   }
 }
 
@@ -13555,7 +13559,8 @@ async function computerUseLoop({
   onlyNMostRecentImages,
   signalBus
 }) {
-  return samplingLoop({
+  const startTime = Date.now();
+  const messages = await samplingLoop({
     model,
     systemPromptSuffix,
     messages: [{
@@ -13571,6 +13576,9 @@ async function computerUseLoop({
     playwrightPage,
     signalBus
   });
+  const elapsed = ((Date.now() - startTime) / 1000).toFixed(2);
+  console.log(`⏱️  Agent finished in ${elapsed}s`);
+  return messages;
 }
 
 // signals/bus.ts
