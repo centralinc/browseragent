@@ -39,7 +39,7 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": ""
+    "url": "https://github.com/bigboateng/cu-playwright-ts.git"
   },
   "peerDependencies": {
     "typescript": "^5",
