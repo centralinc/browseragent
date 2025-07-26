@@ -15,7 +15,7 @@ Our goal is to expose a **highly configurable, fine-grained agent**—dial it up
 > | ⚙️  Capability | What it does | Why it rocks |
 > |--------------|--------------|--------------|
 > | **Smart Scrolling** | 90 % viewport scrolls + instant text navigation | Turbo page traversal **and** zero-waste dropdown control |
-> | **Typing Modes** | Bulk, fast-character, human-character | Match CAPTCHA tolerances or burn through inputs |
+> | **Typing Modes** | Fill, fast-character, human-character | Match CAPTCHA tolerances or burn through inputs |
 > | **Signal Bus** | Pause / Resume / Cancel at any step | Add human QA checkpoints in production |
 > | **URL Extractor** | Find links by visible text | Zero CSS selectors needed |
 > | **Speed Tweaks** | Screenshot + delay optimisations | Cut multi-step flows from minutes to seconds |
@@ -174,7 +174,7 @@ import type { ExecutionConfig } from '@onkernel/cu-playwright-ts';
 
 const executionConfig: ExecutionConfig = {
   typing: {
-    mode: 'bulk' | 'character-by-character',
+    mode: 'fill' | 'character-by-character',
     characterDelay: 12, // milliseconds between characters (character-by-character mode)
     completionDelay: 100, // milliseconds to wait after typing completes
   },
@@ -204,13 +204,13 @@ const executionConfig: ExecutionConfig = {
 
 The most impactful configuration is the typing behavior. You can choose between two modes:
 
-**🚀 Bulk Mode (Fastest)** - Types all text instantly using Playwright's native text input:
+**🚀 Fill Mode (Fastest)** - Directly fills input fields bypassing keyboard events entirely:
 ```typescript
 const fastAgent = new ComputerUseAgent({
   apiKey: process.env.ANTHROPIC_API_KEY!,
   page,
   executionConfig: {
-    typing: { mode: 'bulk', completionDelay: 50 }
+    typing: { mode: 'fill', completionDelay: 50 }
   }
 });
 ```
@@ -249,7 +249,7 @@ const balancedAgent = new ComputerUseAgent({
 
 | Mode | Speed | Visibility | Use Case |
 |------|--------|------------|----------|
-| **Bulk** | ⚡⚡⚡ Fastest | ❌ Instant | Production, speed-critical tasks |
+| **Fill** | ⚡⚡⚡ Fastest | ❌ Instant | Production, speed-critical tasks |
 | **Fast Character** | ⚡⚡ Very Fast | ✅ Visible | Development, debugging |
 | **Slow Character** | ⚡ Human-like | ✅ Very visible | Demos, human-like automation |
 

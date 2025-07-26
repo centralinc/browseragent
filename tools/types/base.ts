@@ -58,8 +58,12 @@ export interface ExecutionConfig {
  * Typing behavior configuration
  */
 export interface TypingConfig {
-  /** Whether to type character by character or all at once */
-  mode: 'character-by-character' | 'bulk';
+  /** 
+   * Typing mode with performance characteristics:
+   * - 'fill': Fastest - directly fills input fields bypassing keyboard events entirely (6x+ faster than character-by-character)
+   * - 'character-by-character': Human-like - simulates realistic keyboard events with configurable delays
+   */
+  mode: 'character-by-character' | 'fill';
   /** Delay between characters when using character-by-character mode (in milliseconds) */
   characterDelay?: number;
   /** Delay after typing completion (in milliseconds) */
