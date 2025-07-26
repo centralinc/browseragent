@@ -153,9 +153,21 @@ export class ComputerTool implements ComputerUseTool {
       // Handle configurable typing behavior
       const typingConfig = this.config.typing!;
       
-      if (typingConfig.mode === 'bulk') {
-        // Type all text at once without delay
-        await this.page.keyboard.type(text, { delay: 0 });
+      if (typingConfig.mode === 'fill') {
+        // Use locator.fill() for maximum performance - bypasses keyboard events entirely
+        // This directly sets the input value without simulating keystrokes
+        try {
+          const focusedElement = await this.page.locator(':focus').first();
+          if (await focusedElement.count() > 0) {
+            await focusedElement.fill(text);
+          } else {
+            // Fallback to keyboard.type if no focused element
+            await this.page.keyboard.type(text, { delay: 0 });
+          }
+        } catch {
+          // Fallback to keyboard.type if fill() fails
+          await this.page.keyboard.type(text, { delay: 0 });
+        }
       } else {
         // Type character by character with configurable delay
         await this.page.keyboard.type(text, { delay: typingConfig.characterDelay || 12 });

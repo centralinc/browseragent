@@ -40,3 +40,6 @@ coverage/
 
 # Examples with sensitive data
 example-beam-benefits.ts
+
+# Test package folder
+test-published-package/
