@@ -1,6 +1,7 @@
 import type {
   BetaToolComputerUse20241022,
   BetaToolComputerUse20250124,
+  BetaTool,
 } from '@anthropic-ai/sdk/resources/beta';
 
 export type ActionParams = Record<string, unknown>;
@@ -35,7 +36,7 @@ export type ComputerUseToolDef = ComputerToolDef | FunctionToolDef;
 // Simple base interface for all tools
 export interface ComputerUseTool {
   name: string;
-  toParams(): ComputerToolDef;
+  toParams(): ComputerUseToolDef;
   call(params: Record<string, unknown>): Promise<ToolResult>;
 }
 
@@ -86,6 +87,18 @@ export interface MouseConfig {
 }
 
 /**
+ * Scrolling behavior configuration
+ */
+export interface ScrollingConfig {
+  /** Scrolling mode */
+  mode?: 'percentage';
+  /** Default percentage of viewport to scroll */
+  percentage?: number;
+  /** Overlap percentage for context */
+  overlap?: number;
+}
+
+/**
  * Default execution configuration
  */
 export const DEFAULT_EXECUTION_CONFIG: ExecutionConfig = {
@@ -101,5 +114,10 @@ export const DEFAULT_EXECUTION_CONFIG: ExecutionConfig = {
   mouse: {
     moveSpeed: 'normal',
     clickDelay: 50,
+  },
+  scrolling: {
+    mode: 'percentage',
+    percentage: 90,
+    overlap: 10,
   },
 }; 
