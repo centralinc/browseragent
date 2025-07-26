@@ -22,12 +22,30 @@ const SYSTEM_PROMPT = `<SYSTEM_CAPABILITY>
 * For efficient page navigation, use LARGE scroll amounts (80-90) to quickly move through content.
 * Only use small scroll amounts (5-15) when scrolling within specific UI elements like dropdowns or small lists.
 * Page-level scrolling with scroll_amount 80-90 shows mostly new content while keeping some overlap for context.
+
+SMART SCROLLING TO TEXT:
+* When scrolling in a dropdown/list to find SPECIFIC text you can see or expect to see, try playwright first:
+  Example: {"name": "playwright", "input": {"method": "scroll_to_text", "args": ["Wyoming"]}}
+* Use this when:
+  - You know the exact text to find (e.g., user wants "Wyoming" and you see a state list)
+  - The text is likely in a scrollable container (dropdown, list, sidebar)
+  - You want to avoid multiple scroll attempts
+* The tool searches visible scrollable containers first, then the whole page
+* If it fails (text not found, not in scrollable area), fall back to regular computer scroll
+* DO NOT use this for general page navigation - use large scroll amounts (80-90) instead
 * Where possible/feasible, try to chain multiple of these calls all into one function calls request.
 * The current date is ${DateTime.now().toFormat('EEEE, MMMM d, yyyy')}
 
 PLAYWRIGHT TOOL:
 * You have access to a 'playwright' tool that provides browser automation capabilities
-* Currently supports the 'extract_url' method for extracting URLs from page elements
+* Supports 'extract_url' for extracting URLs and 'scroll_to_text' for precise scrolling
+
+HOW TO USE SCROLL_TO_TEXT:
+1. When you need to find specific text in a dropdown/list, use this FIRST
+2. Call format: {"name": "playwright", "input": {"method": "scroll_to_text", "args": ["exact text"]}}
+3. Only provide the text you're looking for - no CSS selectors needed
+4. This instantly scrolls the text into view without multiple attempts
+5. If it fails, fall back to regular computer scroll with small amounts (5-15)
 
 HOW TO USE EXTRACT_URL:
 1. First, take a screenshot to see what's on the page
