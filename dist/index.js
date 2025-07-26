@@ -13109,11 +13109,11 @@ class ToolCollection {
 function responseToParams(response) {
   return response.content.map((block) => {
     if (block.type === "text" && block.text) {
-      return { type: "text", text: block.text };
+      return { type: "text", text: block.text, citations: block.citations || null };
     }
     if (block.type === "thinking") {
       const { thinking, signature, ...rest } = block;
-      return { ...rest, thinking, ...signature && { signature } };
+      return { ...rest, thinking, signature: signature || "" };
     }
     return block;
   });
@@ -13687,11 +13687,26 @@ class AgentControllerImpl {
   constructor(bus) {
     this.bus = bus;
   }
-  signal(sig, reason) {
-    this.bus.send(sig, reason);
+  signal(signal) {
+    this.bus.send(signal);
   }
-  on(event, listener) {
-    return this.bus.on(event, listener);
+  on(event, callback) {
+    return this.bus.on(event, (payload) => {
+      switch (event) {
+        case "onPause":
+          callback(payload);
+          break;
+        case "onResume":
+          callback(payload);
+          break;
+        case "onCancel":
+          callback(payload);
+          break;
+        case "onError":
+          callback(payload);
+          break;
+      }
+    });
   }
 }
 
