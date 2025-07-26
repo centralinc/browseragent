@@ -14,7 +14,7 @@ Our goal is to expose a **highly configurable, fine-grained agent**—dial it up
 >
 > | ⚙️  Capability | What it does | Why it rocks |
 > |--------------|--------------|--------------|
-> | **Smart Scrolling** | 90 % viewport scrolls + precise 5-20 % micro-scrolls | Turbo page traversal **and** flawless dropdown control |
+> | **Smart Scrolling** | 90 % viewport scrolls + instant text navigation | Turbo page traversal **and** zero-waste dropdown control |
 > | **Typing Modes** | Bulk, fast-character, human-character | Match CAPTCHA tolerances or burn through inputs |
 > | **Signal Bus** | Pause / Resume / Cancel at any step | Add human QA checkpoints in production |
 > | **URL Extractor** | Find links by visible text | Zero CSS selectors needed |
@@ -24,7 +24,7 @@ Below are the flagship improvements shipped in the fork:
 
 ### 🔗 URL Extraction Tool
 
-This fork includes a powerful custom URL extraction tool that intelligently finds and extracts URLs from elements on the page using visible text. This feature is **unique to this fork** and not available in the original SDK.
+Extract URLs from any visible element - no CSS selectors needed! This feature is **unique to this fork**.
 
 #### How It Works
 
@@ -73,6 +73,41 @@ const urls = await agent.execute(
 - For buttons or links, use their label text (e.g., "Download", "Read More", "View Details")
 - For articles or stories, use their title text
 - The tool will automatically handle finding the associated URL
+
+---
+
+### 🎯 Instant Text Navigation
+
+Jump directly to any text in dropdowns, lists, or scrollable containers - no multiple scroll attempts needed!
+
+#### How It Works
+
+The agent can use the `scroll_to_text` playwright method to instantly navigate to specific text:
+
+```typescript
+// The agent sees a state dropdown and needs Wyoming
+await agent.execute(`
+  Use the playwright scroll_to_text method to find "Wyoming" in the state picker
+`);
+
+// Behind the scenes, the agent calls:
+// {"name": "playwright", "input": {"method": "scroll_to_text", "args": ["Wyoming"]}}
+```
+
+**Smart Features**:
+- Automatically detects scrollable containers in viewport
+- Searches visible containers first, then whole page
+- Case-insensitive fallback if exact match not found
+- Graceful fallback to regular scrolling if text not found
+- No CSS selectors needed - just the visible text!
+
+**When the agent uses this**:
+- Finding specific options in dropdowns (states, countries, etc.)
+- Navigating to products in long lists
+- Jumping to specific items in sidebars
+- Any scenario where exact text is known
+
+**Example**: Instead of 10+ small scrolls to find "Wyoming", it's now a single instant jump!
 
 ---
 

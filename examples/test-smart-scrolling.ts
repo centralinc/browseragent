@@ -53,23 +53,23 @@ async function testSmartScrolling(): Promise<void> {
     console.log('\n🎯 TEST 2: Small Scrolls for UI Elements');
     console.log('----------------------------------------');
     
-    console.log('🔍 Testing small scroll (10) within the state picker dropdown...');
-    const smallScrollResult1 = await agent.execute(`
-      Find the state picker dropdown and use scroll_amount 10 to scroll within it.
-      Try to find "Wyoming" in the dropdown using small, precise scrolls.
-      Tell me if you can see Wyoming or need more scrolling.
+    console.log('🔍 Testing smart scroll to text within the state picker dropdown...');
+    const smartScrollResult1 = await agent.execute(`
+      Find the state picker dropdown and use the playwright tool to scroll directly to "Wyoming".
+      Use scroll_to_text method to instantly navigate to Wyoming without multiple scroll attempts.
+      Tell me if you successfully found Wyoming.
     `);
-    console.log('Result:', smallScrollResult1);
+    console.log('Result:', smartScrollResult1);
     
     await page.waitForTimeout(2000);
     
-    console.log('🔍 Testing small scroll (15) within the product list...');
-    const smallScrollResult2 = await agent.execute(`
-      Now find the long product list and use scroll_amount 15 to scroll within it.
-      Try to find "Product 25: Mount" using small, precise scrolls.
-      Tell me what you can see in the list.
+    console.log('🔍 Testing smart scroll to text within the product list...');
+    const smartScrollResult2 = await agent.execute(`
+      Now find the long product list and use the playwright tool to scroll directly to "Product 25: Mount".
+      Use scroll_to_text method for instant navigation.
+      Tell me what you found.
     `);
-    console.log('Result:', smallScrollResult2);
+    console.log('Result:', smartScrollResult2);
     
     await page.waitForTimeout(2000);
 
@@ -106,27 +106,27 @@ async function testSmartScrolling(): Promise<void> {
     
     await page.waitForTimeout(1000);
     
-    console.log('🎯 Testing complete workflow: large scrolls to UI section, then small scrolls within elements...');
+    console.log('🎯 Testing complete workflow: large scrolls + smart text scrolling...');
     const completeWorkflowResult = await agent.execute(`
       1. Use large scrolls (scroll_amount 85-90) to efficiently navigate to the UI Elements section
-      2. Once you find the state picker, use small scrolls (scroll_amount 10-15) to find Wyoming
-      3. Then use small scrolls in the product list to find Product 25
-      Tell me step by step what you found and confirm both large and small scrolls worked as expected.
+      2. Once you find the state picker, use playwright's scroll_to_text to instantly find "Wyoming"
+      3. Then use playwright's scroll_to_text in the product list to find "Product 25: Mount"
+      Tell me step by step what you found and confirm both approaches worked efficiently.
     `);
     console.log('Complete workflow result:', completeWorkflowResult);
 
     console.log('\n✅ TEST SUMMARY');
     console.log('================');
     console.log('✓ Large scrolls (80-90): Should efficiently navigate between page sections');
-    console.log('✓ Small scrolls (5-15): Should precisely navigate within UI elements');
+    console.log('✓ Playwright scroll_to_text: Should instantly find text in UI elements');
     console.log('✓ Default scroll: Should use 90% viewport for efficient navigation');
     console.log('✓ Medium scrolls (21-79): Should provide standard navigation');
     
     console.log('\n📋 Expected Behavior:');
     console.log('• Large scrolls show ~90% new content with 10% overlap');
-    console.log('• Small scrolls allow precise positioning within dropdowns/lists');
-    console.log('• LLM should be guided by prompt to use appropriate scroll amounts');
-    console.log('• No breaking of existing UI element navigation');
+    console.log('• Playwright scroll_to_text instantly navigates to specific text');
+    console.log('• LLM prioritizes playwright for finding text, falls back to regular scrolls');
+    console.log('• Zero wasted scroll attempts when finding specific options');
 
     console.log('\n🎯 Manual Verification:');
     console.log('• Check that large scrolls move efficiently between colored sections');
