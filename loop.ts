@@ -8,6 +8,7 @@ import { makeApiToolResult } from './utils/tool-results';
 import { ComputerTool20241022, ComputerTool20250124 } from './tools/computer';
 import { PlaywrightTool } from './tools/playwright';
 import { Action } from './tools/types/computer';
+import type { ExecutionConfig } from './tools/types/base';
 
 // System prompt optimized for the environment
 const SYSTEM_PROMPT = `<SYSTEM_CAPABILITY>
@@ -79,6 +80,7 @@ export async function samplingLoop({
   tokenEfficientToolsBeta = false,
   playwrightPage,
   signalBus,
+  executionConfig,
 }: {
   model: string;
   systemPromptSuffix?: string;
@@ -91,12 +93,13 @@ export async function samplingLoop({
   tokenEfficientToolsBeta?: boolean;
   playwrightPage: Page;
   signalBus?: import('./signals/bus').SignalBus;
+  executionConfig?: ExecutionConfig;
 }): Promise<BetaMessageParam[]> {
   const selectedVersion = toolVersion || DEFAULT_TOOL_VERSION;
   const toolGroup = TOOL_GROUPS_BY_VERSION[selectedVersion];
   
   // Create computer tools
-  const computerTools = toolGroup.tools.map((Tool: typeof ComputerTool20241022 | typeof ComputerTool20250124) => new Tool(playwrightPage));
+  const computerTools = toolGroup.tools.map((Tool: typeof ComputerTool20241022 | typeof ComputerTool20250124) => new Tool(playwrightPage, executionConfig));
   
   // Create playwright tool
   const playwrightTool = new PlaywrightTool(playwrightPage);
@@ -284,6 +287,7 @@ export async function computerUseLoop({
   tokenEfficientToolsBeta = false,
   onlyNMostRecentImages,
   signalBus,
+  executionConfig,
 }: {
   query: string;
   apiKey: string;
@@ -296,6 +300,7 @@ export async function computerUseLoop({
   tokenEfficientToolsBeta?: boolean;
   onlyNMostRecentImages?: number;
   signalBus?: import('./signals/bus').SignalBus;
+  executionConfig?: ExecutionConfig;
 }): Promise<BetaMessageParam[]> {
   const startTime = Date.now();
   const messages = await samplingLoop({
@@ -313,6 +318,7 @@ export async function computerUseLoop({
     onlyNMostRecentImages,
     playwrightPage,
     signalBus,
+    executionConfig,
   });
   const elapsed = ((Date.now() - startTime) / 1000).toFixed(2);
   console.log(`⏱️  Agent finished in ${elapsed}s`);

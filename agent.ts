@@ -4,6 +4,7 @@ import type { Page } from 'playwright';
 import { computerUseLoop } from './loop';
 import { SignalBus, type SignalEventPayloadMap } from './signals/bus';
 import type { ControlSignal, SignalEvent } from './signals/bus';
+import type { ExecutionConfig } from './tools/types/base';
 
 /**
  * Event callback interfaces for agent controller
@@ -75,6 +76,7 @@ export class ComputerUseAgent {
   private model: string;
   private page: Page;
   private signalBus: SignalBus;
+  private executionConfig?: ExecutionConfig;
 
   /** Expose control-flow signals */
   public readonly controller: AgentController;
@@ -86,6 +88,7 @@ export class ComputerUseAgent {
    * @param options.apiKey - Anthropic API key (get one from https://console.anthropic.com/)
    * @param options.page - Playwright page instance to control
    * @param options.model - Anthropic model to use (defaults to claude-sonnet-4-20250514)
+   * @param options.toolConfig - Tool behavior configuration (typing speed, screenshots, etc.)
    * 
    * @see https://docs.anthropic.com/en/docs/agents-and-tools/tool-use/computer-use-tool#model-compatibility
    */
@@ -93,6 +96,7 @@ export class ComputerUseAgent {
     apiKey,
     page,
     model = 'claude-sonnet-4-20250514',
+    executionConfig,
   }: {
     /** Anthropic API key for authentication */
     apiKey: string;
@@ -103,10 +107,16 @@ export class ComputerUseAgent {
      * @default 'claude-sonnet-4-20250514'
      */
     model?: string;
+    /**
+     * Execution behavior configuration
+     * Controls typing speed, screenshot settings, mouse behavior, etc.
+     */
+    executionConfig?: ExecutionConfig;
   }) {
     this.apiKey = apiKey;
     this.model = model;
     this.page = page;
+    this.executionConfig = executionConfig;
 
     // NEW: create the signal bus + controller up-front so callers can pause *during* first run
     this.signalBus = new SignalBus();
@@ -180,6 +190,7 @@ Respond ONLY with the JSON object, no additional text.`;
       systemPromptSuffix,
       thinkingBudget,
       signalBus: this.signalBus,
+      executionConfig: this.executionConfig,
     });
 
     const lastMessage = messages[messages.length - 1];
