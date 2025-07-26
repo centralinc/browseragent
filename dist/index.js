@@ -12778,6 +12778,21 @@ class ToolError extends Error {
     this.name = "ToolError";
   }
 }
+var DEFAULT_EXECUTION_CONFIG = {
+  typing: {
+    mode: "character-by-character",
+    characterDelay: 12,
+    completionDelay: 100
+  },
+  screenshot: {
+    delay: 0.3,
+    quality: "medium"
+  },
+  mouse: {
+    moveSpeed: "normal",
+    clickDelay: 50
+  }
+};
 
 // tools/utils/validator.ts
 class ActionValidator {
@@ -12836,13 +12851,11 @@ class ActionValidator {
 }
 
 // tools/computer.ts
-var TYPING_DELAY_MS = 12;
-
 class ComputerTool {
   name = "computer";
   page;
-  _screenshotDelay;
   version;
+  config;
   mouseActions = new Set([
     "left_click" /* LEFT_CLICK */,
     "right_click" /* RIGHT_CLICK */,
@@ -12866,10 +12879,10 @@ class ComputerTool {
     "wait" /* WAIT */,
     "extract_url" /* EXTRACT_URL */
   ]);
-  constructor(page, version = "20250124", screenshotDelay = 0.3) {
+  constructor(page, version = "20250124", config = DEFAULT_EXECUTION_CONFIG) {
     this.page = page;
     this.version = version;
-    this._screenshotDelay = screenshotDelay;
+    this.config = { ...DEFAULT_EXECUTION_CONFIG, ...config };
   }
   get apiType() {
     return this.version === "20241022" ? "computer_20241022" : "computer_20250124";
@@ -12937,15 +12950,22 @@ class ComputerTool {
         await this.page.keyboard.up(key);
       }
     } else {
-      await this.page.keyboard.type(text, { delay: TYPING_DELAY_MS });
+      const typingConfig = this.config.typing;
+      if (typingConfig.mode === "bulk") {
+        await this.page.keyboard.type(text, { delay: 0 });
+      } else {
+        await this.page.keyboard.type(text, { delay: typingConfig.characterDelay || 12 });
+      }
     }
-    await this.page.waitForTimeout(100);
+    const completionDelay = this.config.typing?.completionDelay || 100;
+    await this.page.waitForTimeout(completionDelay);
     return await this.screenshot();
   }
   async screenshot() {
     try {
       console.log("Starting screenshot...");
-      await new Promise((resolve) => setTimeout(resolve, this._screenshotDelay * 1000));
+      const screenshotDelay = this.config.screenshot?.delay || 0.3;
+      await new Promise((resolve) => setTimeout(resolve, screenshotDelay * 1000));
       const screenshot = await this.page.screenshot({
         type: "png",
         fullPage: false
@@ -13005,8 +13025,17 @@ class ComputerTool {
       const pageDimensions = await this.page.evaluate(() => {
         return { h: window.innerHeight, w: window.innerWidth };
       });
-      const pagePartitions = 25;
-      const scrollFactor = (scrollAmountValue || 10) / pagePartitions;
+      let scrollFactor = 0.9;
+      if (scrollAmountValue !== undefined) {
+        scrollFactor = Math.min(Math.max(scrollAmountValue / 100, 0.05), 1);
+        if (scrollAmountValue <= 20) {
+          scrollFactor = scrollAmountValue / 100;
+        } else if (scrollAmountValue >= 80) {
+          scrollFactor = Math.min(scrollAmountValue / 100, 0.95);
+        } else {
+          scrollFactor = scrollAmountValue / 100;
+        }
+      }
       if (scrollDirection === "down" || scrollDirection === "up") {
         const amount = pageDimensions.h * scrollFactor;
         await this.page.mouse.wheel(0, scrollDirection === "down" ? amount : -amount);
@@ -13041,14 +13070,14 @@ class ComputerTool {
 }
 
 class ComputerTool20241022 extends ComputerTool {
-  constructor(page, screenshotDelay = 0.3) {
-    super(page, "20241022", screenshotDelay);
+  constructor(page, config) {
+    super(page, "20241022", config);
   }
 }
 
 class ComputerTool20250124 extends ComputerTool {
-  constructor(page, screenshotDelay = 0.3) {
-    super(page, "20250124", screenshotDelay);
+  constructor(page, config) {
+    super(page, "20250124", config);
   }
 }
 
@@ -13387,6 +13416,9 @@ var SYSTEM_PROMPT = `<SYSTEM_CAPABILITY>
 * When viewing a page it can be helpful to zoom out so that you can see everything on the page.
 * Either that, or make sure you scroll down to see everything before deciding something isn't available.
 * When using your computer function calls, they take a while to run and send back to you.
+* For efficient page navigation, use LARGE scroll amounts (80-90) to quickly move through content.
+* Only use small scroll amounts (5-15) when scrolling within specific UI elements like dropdowns or small lists.
+* Page-level scrolling with scroll_amount 80-90 shows mostly new content while keeping some overlap for context.
 * Where possible/feasible, try to chain multiple of these calls all into one function calls request.
 * The current date is ${DateTime.now().toFormat("EEEE, MMMM d, yyyy")}
 
@@ -13430,11 +13462,12 @@ async function samplingLoop({
   thinkingBudget,
   tokenEfficientToolsBeta = false,
   playwrightPage,
-  signalBus
+  signalBus,
+  executionConfig
 }) {
   const selectedVersion = toolVersion || DEFAULT_TOOL_VERSION;
   const toolGroup = TOOL_GROUPS_BY_VERSION[selectedVersion];
-  const computerTools = toolGroup.tools.map((Tool) => new Tool(playwrightPage));
+  const computerTools = toolGroup.tools.map((Tool) => new Tool(playwrightPage, executionConfig));
   const playwrightTool = new PlaywrightTool(playwrightPage);
   const toolCollection = new ToolCollection(...computerTools, playwrightTool);
   const system = {
@@ -13557,7 +13590,8 @@ async function computerUseLoop({
   thinkingBudget = 1024,
   tokenEfficientToolsBeta = false,
   onlyNMostRecentImages,
-  signalBus
+  signalBus,
+  executionConfig
 }) {
   const startTime = Date.now();
   const messages = await samplingLoop({
@@ -13574,7 +13608,8 @@ async function computerUseLoop({
     tokenEfficientToolsBeta,
     onlyNMostRecentImages,
     playwrightPage,
-    signalBus
+    signalBus,
+    executionConfig
   });
   const elapsed = ((Date.now() - startTime) / 1000).toFixed(2);
   console.log(`⏱️  Agent finished in ${elapsed}s`);
@@ -13715,15 +13750,18 @@ class ComputerUseAgent {
   model;
   page;
   signalBus;
+  executionConfig;
   controller;
   constructor({
     apiKey,
     page,
-    model = "claude-sonnet-4-20250514"
+    model = "claude-sonnet-4-20250514",
+    executionConfig
   }) {
     this.apiKey = apiKey;
     this.model = model;
     this.page = page;
+    this.executionConfig = executionConfig;
     this.signalBus = new SignalBus;
     this.controller = new AgentControllerImpl(this.signalBus);
   }
@@ -13748,7 +13786,8 @@ Respond ONLY with the JSON object, no additional text.`;
       model: this.model,
       systemPromptSuffix,
       thinkingBudget,
-      signalBus: this.signalBus
+      signalBus: this.signalBus,
+      executionConfig: this.executionConfig
     });
     const lastMessage = messages[messages.length - 1];
     if (!lastMessage) {
