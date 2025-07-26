@@ -12791,6 +12791,11 @@ var DEFAULT_EXECUTION_CONFIG = {
   mouse: {
     moveSpeed: "normal",
     clickDelay: 50
+  },
+  scrolling: {
+    mode: "percentage",
+    percentage: 90,
+    overlap: 10
   }
 };
 
@@ -13240,7 +13245,7 @@ ${resultText}`;
 }
 
 // tools/playwright.ts
-var SUPPORTED_METHODS = ["extract_url"];
+var SUPPORTED_METHODS = ["extract_url", "scroll_to_text"];
 
 class PlaywrightTool {
   name = "playwright";
@@ -13390,6 +13395,134 @@ class PlaywrightTool {
       throw new ToolError(`Failed to extract URL for selector "${selector}": ${error2}`);
     }
   }
+  async executeScrollToText(args) {
+    const [targetText] = args;
+    if (!targetText) {
+      throw new ToolError("target_text argument is required");
+    }
+    console.log(`[scroll_to_text] Looking for text: "${targetText}"`);
+    try {
+      const scrolled = await this.page.evaluate(({ targetText: targetText2 }) => {
+        let possibleContainers = [];
+        const allElements = document.querySelectorAll("*");
+        for (let i = 0;i < allElements.length; i++) {
+          const el = allElements[i];
+          if (!el)
+            continue;
+          const rect = el.getBoundingClientRect();
+          const style = window.getComputedStyle(el);
+          if (rect.width > 0 && rect.height > 0 && rect.top < window.innerHeight && rect.bottom > 0 && (style.overflowY === "auto" || style.overflowY === "scroll")) {
+            possibleContainers.push(el);
+            console.log("[scroll_to_text] Found scrollable container:", {
+              tag: el.tagName,
+              id: el.id,
+              class: el.className,
+              height: rect.height
+            });
+          }
+        }
+        let searchScopes = possibleContainers.length > 0 ? [...possibleContainers, document.body] : [document.body];
+        let foundElement = null;
+        console.log("[scroll_to_text] Searching in", searchScopes.length, "containers");
+        for (const scope of searchScopes) {
+          const walker = document.createTreeWalker(scope, NodeFilter.SHOW_TEXT, {
+            acceptNode: (node) => {
+              if (node.textContent && node.textContent.includes(targetText2)) {
+                return NodeFilter.FILTER_ACCEPT;
+              }
+              return NodeFilter.FILTER_REJECT;
+            }
+          });
+          let textNode = walker.nextNode();
+          if (!textNode) {
+            const walkerCI = document.createTreeWalker(scope, NodeFilter.SHOW_TEXT, {
+              acceptNode: (node) => {
+                if (node.textContent && node.textContent.toLowerCase().includes(targetText2.toLowerCase())) {
+                  return NodeFilter.FILTER_ACCEPT;
+                }
+                return NodeFilter.FILTER_REJECT;
+              }
+            });
+            textNode = walkerCI.nextNode();
+          }
+          if (textNode && textNode.parentElement) {
+            foundElement = textNode.parentElement;
+            break;
+          }
+        }
+        if (!foundElement) {
+          console.log("[scroll_to_text] Text not found in any container");
+          return { success: false, message: `Text "${targetText2}" not found` };
+        }
+        const element = foundElement;
+        console.log("[scroll_to_text] Found element:", {
+          tag: element.tagName,
+          text: element.textContent?.substring(0, 50)
+        });
+        let scrollContainer = element;
+        while (scrollContainer && scrollContainer !== document.body) {
+          const style = window.getComputedStyle(scrollContainer);
+          if (style.overflow === "auto" || style.overflow === "scroll" || style.overflowY === "auto" || style.overflowY === "scroll") {
+            console.log("[scroll_to_text] Found element's scroll container:", {
+              tag: scrollContainer.tagName,
+              id: scrollContainer.id,
+              class: scrollContainer.className
+            });
+            break;
+          }
+          scrollContainer = scrollContainer.parentElement || scrollContainer;
+        }
+        let needsContainerScroll = false;
+        if (scrollContainer && scrollContainer !== document.body && scrollContainer !== element) {
+          const containerRect = scrollContainer.getBoundingClientRect();
+          if (containerRect.bottom < 0 || containerRect.top > window.innerHeight) {
+            console.log("[scroll_to_text] Container not in viewport, scrolling container into view first");
+            needsContainerScroll = true;
+            scrollContainer.scrollIntoView({
+              behavior: "smooth",
+              block: "center"
+            });
+          }
+          const elementRect = element.getBoundingClientRect();
+          const scrollTop = scrollContainer.scrollTop + (elementRect.top - containerRect.top) - containerRect.height / 2 + elementRect.height / 2;
+          console.log("[scroll_to_text] Scrolling container to position:", scrollTop);
+          scrollContainer.scrollTop = scrollTop;
+        } else {
+          console.log("[scroll_to_text] Using scrollIntoView for element");
+          element.scrollIntoView({
+            behavior: "smooth",
+            block: "center",
+            inline: "center"
+          });
+        }
+        return {
+          success: true,
+          message: `Scrolled to "${targetText2}"`,
+          containerScrolled: needsContainerScroll,
+          elementInfo: {
+            tagName: element.tagName,
+            className: element.className,
+            id: element.id
+          }
+        };
+      }, { targetText });
+      if (!scrolled.success) {
+        return {
+          output: `${scrolled.message}. Consider using regular computer scroll instead.`
+        };
+      }
+      const waitTime = scrolled.containerScrolled ? 1200 : 800;
+      await this.page.waitForTimeout(waitTime);
+      return {
+        output: scrolled.elementInfo ? `${scrolled.message} (element: ${scrolled.elementInfo.tagName}${scrolled.elementInfo.id ? "#" + scrolled.elementInfo.id : ""}${scrolled.elementInfo.className ? "." + scrolled.elementInfo.className : ""})` : scrolled.message
+      };
+    } catch (error2) {
+      if (error2 instanceof ToolError) {
+        throw error2;
+      }
+      throw new ToolError(`Failed to scroll to text "${targetText}": ${error2}`);
+    }
+  }
   async call(params) {
     const { method, args } = params;
     if (!this.validateMethod(method)) {
@@ -13401,6 +13534,8 @@ class PlaywrightTool {
     switch (method) {
       case "extract_url":
         return await this.executeExtractUrl(args);
+      case "scroll_to_text":
+        return await this.executeScrollToText(args);
       default:
         throw new ToolError(`Method ${method} is not implemented`);
     }
@@ -13419,12 +13554,30 @@ var SYSTEM_PROMPT = `<SYSTEM_CAPABILITY>
 * For efficient page navigation, use LARGE scroll amounts (80-90) to quickly move through content.
 * Only use small scroll amounts (5-15) when scrolling within specific UI elements like dropdowns or small lists.
 * Page-level scrolling with scroll_amount 80-90 shows mostly new content while keeping some overlap for context.
+
+SMART SCROLLING TO TEXT:
+* When scrolling in a dropdown/list to find SPECIFIC text you can see or expect to see, try playwright first:
+  Example: {"name": "playwright", "input": {"method": "scroll_to_text", "args": ["Wyoming"]}}
+* Use this when:
+  - You know the exact text to find (e.g., user wants "Wyoming" and you see a state list)
+  - The text is likely in a scrollable container (dropdown, list, sidebar)
+  - You want to avoid multiple scroll attempts
+* The tool searches visible scrollable containers first, then the whole page
+* If it fails (text not found, not in scrollable area), fall back to regular computer scroll
+* DO NOT use this for general page navigation - use large scroll amounts (80-90) instead
 * Where possible/feasible, try to chain multiple of these calls all into one function calls request.
 * The current date is ${DateTime.now().toFormat("EEEE, MMMM d, yyyy")}
 
 PLAYWRIGHT TOOL:
 * You have access to a 'playwright' tool that provides browser automation capabilities
-* Currently supports the 'extract_url' method for extracting URLs from page elements
+* Supports 'extract_url' for extracting URLs and 'scroll_to_text' for precise scrolling
+
+HOW TO USE SCROLL_TO_TEXT:
+1. When you need to find specific text in a dropdown/list, use this FIRST
+2. Call format: {"name": "playwright", "input": {"method": "scroll_to_text", "args": ["exact text"]}}
+3. Only provide the text you're looking for - no CSS selectors needed
+4. This instantly scrolls the text into view without multiple attempts
+5. If it fails, fall back to regular computer scroll with small amounts (5-15)
 
 HOW TO USE EXTRACT_URL:
 1. First, take a screenshot to see what's on the page
