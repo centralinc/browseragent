@@ -1,5 +1,5 @@
 import { chromium } from 'playwright';
-import { ComputerUseAgent } from './index';
+import { ComputerUseAgent } from '../index';
 import { z } from 'zod';
 async function urlExtractionExample(): Promise<void> {
   const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY;

@@ -1,10 +1,11 @@
-import type { BetaMessageParam as AnthropicMessageParam, BetaMessage as AnthropicMessage, BetaContentBlock as AnthropicContentBlock } from '@anthropic-ai/sdk/resources/beta/messages/messages';
+import type { BetaMessageParam as AnthropicMessageParam, BetaMessage as AnthropicMessage, BetaContentBlock as AnthropicContentBlock, BetaTool, BetaToolComputerUse20241022, BetaToolComputerUse20250124 } from '@anthropic-ai/sdk/resources/beta/messages/messages';
 import type { ActionParams } from '../tools/types/computer';
 
 // Re-export the SDK types
 export type BetaMessageParam = AnthropicMessageParam;
 export type BetaMessage = AnthropicMessage;
 export type BetaContentBlock = AnthropicContentBlock;
+export type { BetaTool, BetaToolComputerUse20241022, BetaToolComputerUse20250124 };
 
 // Keep our local types for internal use
 export interface BetaTextBlock {

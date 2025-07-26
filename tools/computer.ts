@@ -62,7 +62,7 @@ export class ComputerTool implements ComputerUseTool {
       display_height_px: 720,
       display_number: null,
     };
-    return params;
+    return params as ComputerToolDef;
   }
 
   private getMouseButton(action: Action): 'left' | 'right' | 'middle' {
