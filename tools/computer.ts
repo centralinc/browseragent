@@ -3,16 +3,20 @@ import { Action } from './types/computer';
 import type { ActionParams } from './types/computer';
 import { KeyboardUtils } from './utils/keyboard';
 import { ActionValidator } from './utils/validator';
-import { ToolError, type ToolResult, type ComputerUseTool, type ComputerToolDef } from './types/base';
-
-const TYPING_DELAY_MS = 12;
+import { 
+  ToolError, 
+  type ToolResult, 
+  type ComputerUseTool, 
+  type ComputerToolDef, 
+  type ExecutionConfig,
+  DEFAULT_EXECUTION_CONFIG 
+} from './types/base';
 
 export class ComputerTool implements ComputerUseTool {
   name: 'computer' = 'computer';
   protected page: Page;
-  // Delay (in seconds) before capturing a screenshot – kept small for faster turnaround
-  protected _screenshotDelay: number;
   protected version: '20241022' | '20250124';
+  protected config: ExecutionConfig;
 
   private readonly mouseActions = new Set([
     Action.LEFT_CLICK,
@@ -43,11 +47,11 @@ export class ComputerTool implements ComputerUseTool {
   constructor(
     page: Page,
     version: '20241022' | '20250124' = '20250124',
-    screenshotDelay: number = 0.3, // default 300 ms
+    config: ExecutionConfig = DEFAULT_EXECUTION_CONFIG,
   ) {
     this.page = page;
     this.version = version;
-    this._screenshotDelay = screenshotDelay;
+    this.config = { ...DEFAULT_EXECUTION_CONFIG, ...config };
   }
 
   get apiType(): 'computer_20241022' | 'computer_20250124' {
@@ -122,17 +126,29 @@ export class ComputerTool implements ComputerUseTool {
         await this.page.keyboard.up(key);
       }
     } else {
-      await this.page.keyboard.type(text, { delay: TYPING_DELAY_MS });
+      // Handle configurable typing behavior
+      const typingConfig = this.config.typing!;
+      
+      if (typingConfig.mode === 'bulk') {
+        // Type all text at once without delay
+        await this.page.keyboard.type(text, { delay: 0 });
+      } else {
+        // Type character by character with configurable delay
+        await this.page.keyboard.type(text, { delay: typingConfig.characterDelay || 12 });
+      }
     }
 
-    await this.page.waitForTimeout(100);
+    // Wait for completion using configurable delay
+    const completionDelay = this.config.typing?.completionDelay || 100;
+    await this.page.waitForTimeout(completionDelay);
     return await this.screenshot();
   }
 
   async screenshot(): Promise<ToolResult> {
     try {
       console.log('Starting screenshot...');
-      await new Promise(resolve => setTimeout(resolve, this._screenshotDelay * 1000));
+      const screenshotDelay = this.config.screenshot?.delay || 0.3;
+      await new Promise(resolve => setTimeout(resolve, screenshotDelay * 1000));
       const screenshot = await this.page.screenshot({
         type: 'png',
         fullPage: false, // viewport only for speed
@@ -247,13 +263,13 @@ export class ComputerTool implements ComputerUseTool {
 
 // For backward compatibility
 export class ComputerTool20241022 extends ComputerTool {
-  constructor(page: Page, screenshotDelay = 0.3) {
-    super(page, '20241022', screenshotDelay);
+  constructor(page: Page, config?: ExecutionConfig) {
+    super(page, '20241022', config);
   }
 }
 
 export class ComputerTool20250124 extends ComputerTool {
-  constructor(page: Page, screenshotDelay = 0.3) {
-    super(page, '20250124', screenshotDelay);
+  constructor(page: Page, config?: ExecutionConfig) {
+    super(page, '20250124', config);
   }
 }

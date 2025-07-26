@@ -98,6 +98,96 @@ const agent = new ComputerUseAgent({ apiKey, page });
 
 // Subscribe to events
 agent.controller.on('onPause', ({ step }) => console.log('Paused at', step));
+```
+
+---
+
+### ⚙️ Configurable Execution Behavior
+
+This fork includes a powerful configuration system that allows you to customize how the agent executes browser automation tasks. You can control typing speed, screenshot timing, and other automation behaviors to optimize for speed or human-like interaction.
+
+#### Available Configuration Options
+
+```typescript
+import type { ExecutionConfig } from '@onkernel/cu-playwright-ts';
+
+const executionConfig: ExecutionConfig = {
+  typing: {
+    mode: 'bulk' | 'character-by-character',
+    characterDelay: 12, // milliseconds between characters (character-by-character mode)
+    completionDelay: 100, // milliseconds to wait after typing completes
+  },
+  screenshot: {
+    delay: 0.3, // seconds to wait before taking screenshots
+    quality: 'low' | 'medium' | 'high',
+  },
+  mouse: {
+    moveSpeed: 'instant' | 'fast' | 'normal' | 'slow',
+    clickDelay: 50, // milliseconds to wait after clicks
+  },
+};
+```
+
+#### Typing Mode Configuration
+
+The most impactful configuration is the typing behavior. You can choose between two modes:
+
+**🚀 Bulk Mode (Fastest)** - Types all text instantly using Playwright's native text input:
+```typescript
+const fastAgent = new ComputerUseAgent({
+  apiKey: process.env.ANTHROPIC_API_KEY!,
+  page,
+  executionConfig: {
+    typing: { mode: 'bulk', completionDelay: 50 }
+  }
+});
+```
+
+**⌨️ Character-by-Character Mode (Human-like)** - Types text one character at a time with configurable delays:
+```typescript
+const humanLikeAgent = new ComputerUseAgent({
+  apiKey: process.env.ANTHROPIC_API_KEY!,
+  page,
+  executionConfig: {
+    typing: {
+      mode: 'character-by-character',
+      characterDelay: 100, // 100ms between each character
+      completionDelay: 200,
+    }
+  }
+});
+```
+
+**⚡ Fast Character Mode (Balanced)** - Best of both worlds - visible typing but very fast:
+```typescript
+const balancedAgent = new ComputerUseAgent({
+  apiKey: process.env.ANTHROPIC_API_KEY!,
+  page,
+  executionConfig: {
+    typing: {
+      mode: 'character-by-character',
+      characterDelay: 5, // Very fast character typing
+      completionDelay: 75,
+    }
+  }
+});
+```
+
+**Performance Comparison:**
+
+| Mode | Speed | Visibility | Use Case |
+|------|--------|------------|----------|
+| **Bulk** | ⚡⚡⚡ Fastest | ❌ Instant | Production, speed-critical tasks |
+| **Fast Character** | ⚡⚡ Very Fast | ✅ Visible | Development, debugging |
+| **Slow Character** | ⚡ Human-like | ✅ Very visible | Demos, human-like automation |
+
+#### Try the Example
+
+Run the included example to see the performance differences:
+
+```bash
+# Run the typing configuration example (set ANTHROPIC_API_KEY first)
+npx ts-node examples/example-typing-config.ts
 agent.controller.on('onResume', () => console.log('Resumed'));
 
 // Trigger a pause after 5 s
@@ -274,8 +364,6 @@ const result = await agent.execute(
   }
 );
 ```
-
-
 
 ## Environment Setup
 
