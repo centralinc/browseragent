@@ -220,8 +220,28 @@ export class ComputerTool implements ComputerUseTool {
       const pageDimensions = await this.page.evaluate(() => {
 	      return { h: window.innerHeight, w: window.innerWidth };
       });
-      const pagePartitions = 25;
-      const scrollFactor = (scrollAmountValue || 10) / pagePartitions;
+      
+      let scrollFactor = 0.9; // Default to 90% of viewport for efficient navigation
+      
+      if (scrollAmountValue !== undefined) {
+        // Convert LLM scroll amount (1-100) to viewport percentage
+        // Small amounts (1-20) = precise scrolling for UI elements
+        // Large amounts (80-90) = efficient page navigation
+        scrollFactor = Math.min(Math.max(scrollAmountValue / 100, 0.05), 1.0);
+        
+        // For very small amounts (<=20), use more precise scrolling
+        if (scrollAmountValue <= 20) {
+          scrollFactor = scrollAmountValue / 100; // 1-20% of viewport
+        }
+        // For large amounts (>=80), ensure efficient page navigation
+        else if (scrollAmountValue >= 80) {
+          scrollFactor = Math.min(scrollAmountValue / 100, 0.95); // Up to 95% of viewport
+        }
+        // Medium amounts (21-79) use direct percentage
+        else {
+          scrollFactor = scrollAmountValue / 100;
+        }
+      }
       
       if (scrollDirection === 'down' || scrollDirection === 'up') {
         const amount = pageDimensions.h * scrollFactor;

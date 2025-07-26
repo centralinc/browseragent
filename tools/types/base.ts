@@ -49,6 +49,8 @@ export interface ExecutionConfig {
   screenshot?: ScreenshotConfig;
   /** Mouse interaction settings */
   mouse?: MouseConfig;
+  /** Scrolling behavior settings */
+  scrolling?: ScrollingConfig;
 }
 
 /**

@@ -19,6 +19,9 @@ const SYSTEM_PROMPT = `<SYSTEM_CAPABILITY>
 * When viewing a page it can be helpful to zoom out so that you can see everything on the page.
 * Either that, or make sure you scroll down to see everything before deciding something isn't available.
 * When using your computer function calls, they take a while to run and send back to you.
+* For efficient page navigation, use LARGE scroll amounts (80-90) to quickly move through content.
+* Only use small scroll amounts (5-15) when scrolling within specific UI elements like dropdowns or small lists.
+* Page-level scrolling with scroll_amount 80-90 shows mostly new content while keeping some overlap for context.
 * Where possible/feasible, try to chain multiple of these calls all into one function calls request.
 * The current date is ${DateTime.now().toFormat('EEEE, MMMM d, yyyy')}
 
