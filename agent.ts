@@ -2,16 +2,30 @@ import { z } from 'zod';
 import zodToJsonSchema from 'zod-to-json-schema';
 import type { Page } from 'playwright';
 import { computerUseLoop } from './loop';
-import { SignalBus, type ControlSignal, type SignalEvent, type SignalListener } from './signals/bus';
+import { SignalBus, type SignalEventPayloadMap } from './signals/bus';
+import type { ControlSignal, SignalEvent } from './signals/bus';
+
+/**
+ * Event callback interfaces for agent controller
+ */
+export interface AgentControllerEvents {
+  onPause: (data: { at: Date; step: number }) => void;
+  onResume: (data: { at: Date; step: number }) => void;
+  onCancel: (data: { at: Date; step: number; reason?: string }) => void;
+  onError: (data: { at: Date; step: number; error: unknown }) => void;
+}
 
 /**
  * Controller interface for managing agent execution signals
  */
 export interface AgentController {
   /** Send a control signal to the running agent */
-  signal(sig: ControlSignal, reason?: string): void;
-  /** Subscribe to signal events - returns unsubscribe function */
-  on<E extends SignalEvent>(event: E, listener: SignalListener<E>): () => void;
+  signal(signal: 'pause' | 'resume' | 'cancel'): void;
+  /** Subscribe to agent events - returns unsubscribe function */
+  on<K extends keyof AgentControllerEvents>(
+    event: K,
+    callback: AgentControllerEvents[K]
+  ): () => void;
 }
 
 /**
@@ -20,12 +34,31 @@ export interface AgentController {
 export class AgentControllerImpl implements AgentController {
   constructor(private readonly bus: SignalBus) {}
 
-  signal(sig: ControlSignal, reason?: string): void {
-    this.bus.send(sig, reason);
+  signal(signal: 'pause' | 'resume' | 'cancel'): void {
+    this.bus.send(signal as ControlSignal);
   }
 
-  on<E extends SignalEvent>(event: E, listener: SignalListener<E>): () => void {
-    return this.bus.on(event, listener);
+  on<K extends keyof AgentControllerEvents>(
+    event: K,
+    callback: AgentControllerEvents[K]
+  ): () => void {
+    // Pass through the full payload from SignalBus
+    return this.bus.on(event as SignalEvent, (payload) => {
+      switch (event) {
+        case 'onPause':
+          (callback as AgentControllerEvents['onPause'])(payload as SignalEventPayloadMap['onPause']);
+          break;
+        case 'onResume':
+          (callback as AgentControllerEvents['onResume'])(payload as SignalEventPayloadMap['onResume']);
+          break;
+        case 'onCancel':
+          (callback as AgentControllerEvents['onCancel'])(payload as SignalEventPayloadMap['onCancel']);
+          break;
+        case 'onError':
+          (callback as AgentControllerEvents['onError'])(payload as SignalEventPayloadMap['onError']);
+          break;
+      }
+    });
   }
 }
 
@@ -200,6 +233,7 @@ Respond ONLY with the JSON object, no additional text.`;
     // Example: "  {\"status\": \"ok\"}  " (JSON with whitespace)
     return JSON.parse(response.trim());
   }
+}
 
-
-} 
+// Re-export types from signals/bus for external use
+export type { ControlSignal, SignalEvent } from './signals/bus'; 

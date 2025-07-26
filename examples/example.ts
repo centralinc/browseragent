@@ -1,6 +1,6 @@
 import { chromium } from 'playwright';
 import { z } from 'zod';
-import { ComputerUseAgent } from './index';
+import { ComputerUseAgent } from '../index';
 
 async function textResponseExample(): Promise<void> {
   const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY;

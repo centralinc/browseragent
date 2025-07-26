@@ -1,3 +1,5 @@
+import type { BetaTool, BetaToolComputerUse20241022, BetaToolComputerUse20250124 } from '../../types/beta';
+
 export type ActionParams = Record<string, unknown>;
 
 export interface ToolResult {
@@ -18,26 +20,11 @@ export class ToolError extends Error {
 export interface FunctionToolDef {
   name: string;
   type: 'custom';
-  input_schema: {
-    type: 'object';
-    properties: Record<string, {
-      type: string;
-      description: string;
-      enum?: readonly string[];
-      items?: { type: string; description: string };
-    }>;
-    required?: string[];
-  };
+  input_schema: BetaTool.InputSchema;
 }
 
-// Computer tool definition (matches Anthropic's built-in computer tool format)
-export interface ComputerToolDef {
-  name: string;
-  type: 'computer_20241022' | 'computer_20250124';
-  display_width_px: number;
-  display_height_px: number;
-  display_number: null;
-}
+// Computer tool definition (uses Anthropic's exact computer tool types)
+export type ComputerToolDef = BetaToolComputerUse20241022 | BetaToolComputerUse20250124;
 
 // Union type for all possible tool definitions
 export type ComputerUseToolDef = ComputerToolDef | FunctionToolDef;

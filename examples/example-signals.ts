@@ -51,7 +51,7 @@ async function signalsExample(): Promise<void> {
     // Auto-cancel after 15 seconds if still running
     setTimeout(() => {
       console.log('🛑 Triggering cancel signal...');
-      agent.controller.signal('cancel', 'Demonstration timeout');
+      agent.controller.signal('cancel');
     }, 15000);
 
     console.log('Starting agent execution...');
@@ -144,7 +144,7 @@ async function structuredDataWithSignals(): Promise<void> {
     // Set up a watchdog that cancels if it takes too long
     const watchdog = setTimeout(() => {
       console.log('⏰ Watchdog timeout - cancelling agent');
-      agent.controller.signal('cancel', 'Watchdog timeout');
+      agent.controller.signal('cancel');
     }, 30000); // 30 second timeout
 
     agent.controller.on('onCancel', () => {

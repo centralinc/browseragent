@@ -3,11 +3,11 @@ import type { BetaMessage, BetaMessageParam, BetaToolResultBlock, BetaContentBlo
 export function responseToParams(response: BetaMessage): BetaContentBlock[] {
   return response.content.map(block => {
     if (block.type === 'text' && block.text) {
-      return { type: 'text', text: block.text };
+      return { type: 'text', text: block.text, citations: block.citations || null };
     }
     if (block.type === 'thinking') {
       const { thinking, signature, ...rest } = block;
-      return { ...rest, thinking, ...(signature && { signature }) };
+      return { ...rest, thinking, signature: signature || '' };
     }
     return block as BetaContentBlock;
   });
