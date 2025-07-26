@@ -12973,8 +12973,17 @@ class ComputerTool {
       }
     } else {
       const typingConfig = this.config.typing;
-      if (typingConfig.mode === "bulk") {
-        await this.page.keyboard.type(text, { delay: 0 });
+      if (typingConfig.mode === "fill") {
+        try {
+          const focusedElement = await this.page.locator(":focus").first();
+          if (await focusedElement.count() > 0) {
+            await focusedElement.fill(text);
+          } else {
+            await this.page.keyboard.type(text, { delay: 0 });
+          }
+        } catch {
+          await this.page.keyboard.type(text, { delay: 0 });
+        }
       } else {
         await this.page.keyboard.type(text, { delay: typingConfig.characterDelay || 12 });
       }
