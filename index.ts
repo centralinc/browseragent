@@ -10,5 +10,4 @@ export type {
   MouseConfig, 
   ScrollingConfig
 } from './tools/types/base';
-export { DEFAULT_EXECUTION_CONFIG } from './tools/types/base';
 export type { AgentController, AgentControllerEvents, ControlSignal, SignalEvent } from './agent';

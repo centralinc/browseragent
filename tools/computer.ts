@@ -9,7 +9,11 @@ import {
   type ComputerUseTool, 
   type ComputerToolDef, 
   type ExecutionConfig,
-  DEFAULT_EXECUTION_CONFIG 
+  DEFAULT_EXECUTION_CONFIG,
+  type TypingConfig,
+  type ScreenshotConfig,
+  type MouseConfig,
+  type ScrollingConfig
 } from './types/base';
 
 export class ComputerTool implements ComputerUseTool {
@@ -47,11 +51,31 @@ export class ComputerTool implements ComputerUseTool {
   constructor(
     page: Page,
     version: '20241022' | '20250124' = '20250124',
-    config: ExecutionConfig = DEFAULT_EXECUTION_CONFIG,
+    config?: ExecutionConfig,
   ) {
     this.page = page;
     this.version = version;
-    this.config = { ...DEFAULT_EXECUTION_CONFIG, ...config };
+    
+    // Deep merge each config section to preserve defaults while allowing overrides
+    this.config = {
+      typing: {
+        ...DEFAULT_EXECUTION_CONFIG.typing!,
+        ...(config?.typing || {})
+      } as Required<TypingConfig>,
+      screenshot: {
+        ...DEFAULT_EXECUTION_CONFIG.screenshot!,
+        ...(config?.screenshot || {})
+      } as Required<ScreenshotConfig>,
+      mouse: {
+        ...DEFAULT_EXECUTION_CONFIG.mouse!,
+        ...(config?.mouse || {})
+      } as Required<MouseConfig>,
+      scrolling: {
+        ...DEFAULT_EXECUTION_CONFIG.scrolling!,
+        ...(config?.scrolling || {})
+      } as Required<ScrollingConfig>
+    };
+    
   }
 
   get apiType(): 'computer_20241022' | 'computer_20250124' {
