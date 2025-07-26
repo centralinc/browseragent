@@ -4,9 +4,23 @@
 
 A TypeScript SDK that combines Anthropic's Computer Use capabilities with Playwright for browser automation tasks. This SDK provides a clean, type-safe interface for automating browser interactions using Claude's computer use abilities.
 
+This fork is **purpose-built for high-volume RPA scenarios**—think large insurance back-offices, government form-filling portals, and other data-heavy workflows.  
+It runs **seamlessly inside Temporal workflows**: the agent's native `pause` / `resume` / `cancel` **signals** can be surfaced as **Temporal signals**, letting your orchestration layer coordinate long-running jobs while operators jump in when needed (no tight coupling between the human and Temporal itself).  
+Our goal is to expose a **highly configurable, fine-grained agent**—dial it up for raw speed or dial it down for pixel-perfect, human-like precision.
+
 ## 🆕 Additional Features in This Fork
 
-This fork extends the original SDK with powerful new capabilities:
+> **At-a-glance feature matrix**
+>
+> | ⚙️  Capability | What it does | Why it rocks |
+> |--------------|--------------|--------------|
+> | **Smart Scrolling** | 90 % viewport scrolls + precise 5-20 % micro-scrolls | Turbo page traversal **and** flawless dropdown control |
+> | **Typing Modes** | Bulk, fast-character, human-character | Match CAPTCHA tolerances or burn through inputs |
+> | **Signal Bus** | Pause / Resume / Cancel at any step | Add human QA checkpoints in production |
+> | **URL Extractor** | Find links by visible text | Zero CSS selectors needed |
+> | **Speed Tweaks** | Screenshot + delay optimisations | Cut multi-step flows from minutes to seconds |
+
+Below are the flagship improvements shipped in the fork:
 
 ### 🔗 URL Extraction Tool
 
@@ -62,6 +76,18 @@ const urls = await agent.execute(
 
 ---
 
+### 🖱️ Smart Scrolling (90 % Viewport)
+
+Speed through long pages while preserving precise control in small UI elements.
+
+* **Default behaviour** &nbsp;→&nbsp; Scrolls ~90 % of the viewport with ~10 % overlap for maximum throughput.
+* **Fine control** &nbsp;→&nbsp; `scroll_amount` between **5-20** performs tiny scrolls—perfect for dropdowns, lists, side-panels.
+* **Configurable** &nbsp;→&nbsp; Accepts any `scroll_amount` 1-100 and degrades gracefully.
+
+> **Why it matters**: Form-heavy portals (e.g. insurance claim systems) often require rapid page-level scrolling punctuated by pixel-perfect adjustments inside select widgets. This feature automatically handles both cases.
+
+---
+
 ### ⚡ Speed Optimizations
 
 Screenshots now capture **~5× faster** and post-action waits are shortened:
@@ -104,7 +130,7 @@ agent.controller.on('onPause', ({ step }) => console.log('Paused at', step));
 
 ### ⚙️ Configurable Execution Behavior
 
-This fork includes a powerful configuration system that allows you to customize how the agent executes browser automation tasks. You can control typing speed, screenshot timing, and other automation behaviors to optimize for speed or human-like interaction.
+This fork includes a powerful configuration system that allows you to customize how the agent executes browser automation tasks. You can control typing speed, screenshot timing, scrolling strategy, mouse behaviour, and other automation settings to optimise for raw speed **or** human-like interaction.
 
 #### Available Configuration Options
 
@@ -124,6 +150,17 @@ const executionConfig: ExecutionConfig = {
   mouse: {
     moveSpeed: 'instant' | 'fast' | 'normal' | 'slow',
     clickDelay: 50, // milliseconds to wait after clicks
+  },
+  scrolling: {
+    /**
+     * When no scroll_amount is provided the agent will use this mode
+     * with ~90 % viewport coverage for page-level scrolling.
+     */
+    mode: 'percentage', // (future-proofed for pixel or element-based modes)
+    /** Default percentage of the viewport to scroll. */
+    percentage: 90,
+    /** Overlap percentage to keep for context during large scrolls. */
+    overlap: 10,
   },
 };
 ```
