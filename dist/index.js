@@ -12884,10 +12884,27 @@ class ComputerTool {
     "wait" /* WAIT */,
     "extract_url" /* EXTRACT_URL */
   ]);
-  constructor(page, version = "20250124", config = DEFAULT_EXECUTION_CONFIG) {
+  constructor(page, version = "20250124", config) {
     this.page = page;
     this.version = version;
-    this.config = { ...DEFAULT_EXECUTION_CONFIG, ...config };
+    this.config = {
+      typing: {
+        ...DEFAULT_EXECUTION_CONFIG.typing,
+        ...config?.typing || {}
+      },
+      screenshot: {
+        ...DEFAULT_EXECUTION_CONFIG.screenshot,
+        ...config?.screenshot || {}
+      },
+      mouse: {
+        ...DEFAULT_EXECUTION_CONFIG.mouse,
+        ...config?.mouse || {}
+      },
+      scrolling: {
+        ...DEFAULT_EXECUTION_CONFIG.scrolling,
+        ...config?.scrolling || {}
+      }
+    };
   }
   get apiType() {
     return this.version === "20241022" ? "computer_20241022" : "computer_20250124";

@@ -1,6 +1,6 @@
 {
   "name": "@onkernel/cu-playwright",
-  "version": "1.0.6",
+  "version": "1.0.7",
   "description": "Computer Use x Playwright SDK",
   "main": "./dist/index.js",
   "module": "./dist/index.js",
