@@ -2,30 +2,27 @@
   "name": "@onkernel/cu-playwright",
   "version": "1.0.8",
   "description": "Computer Use x Playwright SDK",
-  "main": "./dist/index.js",
+  "main": "./dist/index.cjs",
   "module": "./dist/index.js",
-  "types": "./index.ts",
-  "type": "module",
+  "types": "./dist/index.d.ts",
   "scripts": {
-    "build": "bun build ./index.ts --outdir ./dist --target node",
+    "build": "bun build ./index.ts --outdir ./dist --target node --format esm --splitting && bun build ./index.ts --outfile ./dist/index.cjs --target node --format cjs && echo '{\"type\": \"module\"}' > dist/package.json",
+    "build:types": "tsc --emitDeclarationOnly --outDir ./dist",
+    "clean": "rm -rf dist",
     "format": "bun run eslint . --fix",
     "lint": "bun run eslint .",
     "lint:fix": "bun run eslint . --fix",
-    "prepublishOnly": "bun run lint && bun run build"
+    "prepublishOnly": "bun run lint && bun run clean && bun run build && bun run build:types"
   },
   "exports": {
     ".": {
       "import": "./dist/index.js",
-      "types": "./index.ts"
+      "require": "./dist/index.cjs",
+      "types": "./dist/index.d.ts"
     }
   },
   "files": [
-    "dist/",
-    "index.ts",
-    "loop.ts",
-    "tools/",
-    "types/",
-    "utils/"
+    "dist/"
   ],
   "keywords": [
     "computer-use",
@@ -47,18 +44,19 @@
   },
   "dependencies": {
     "@anthropic-ai/sdk": "0.52.0",
+    "@types/luxon": "^3.6.2",
     "luxon": "3.6.0",
     "zod": "^3.25.0",
     "zod-to-json-schema": "^3.23.1"
   },
   "devDependencies": {
     "@eslint/js": "^9.0.0",
-    "@types/luxon": "^3.6.2",
     "@types/node": "^24.1.0",
     "@typescript-eslint/eslint-plugin": "^8.0.0",
     "@typescript-eslint/parser": "^8.0.0",
     "eslint": "^9.0.0",
-    "eslint-config-prettier": "^9.0.0"
+    "eslint-config-prettier": "^9.0.0",
+    "typescript": "^5.0.0"
   },
   "publishConfig": {
     "access": "public"
