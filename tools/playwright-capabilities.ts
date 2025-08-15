@@ -10,7 +10,7 @@ export interface PlaywrightCapabilityDef {
   displayName: string;
   description: string;
   usage: string;
-  schema: z.ZodSchema<any>;
+  schema: z.ZodSchema<unknown>;
   handler: (page: Page, args: string[]) => Promise<ToolResult>;
 }
 

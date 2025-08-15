@@ -16,7 +16,7 @@ export interface ToolCapability {
   /** Detailed usage instructions and examples */
   usage: string;
   /** Input parameter schema using Zod for validation */
-  schema: z.ZodSchema<any>;
+  schema: z.ZodSchema<unknown>;
   /** Whether this capability is enabled by default */
   enabled?: boolean;
 }
@@ -42,7 +42,7 @@ export interface ToolRegistry {
   /** Generate documentation for all tools */
   generateAllDocs(): string;
   /** Validate method arguments against capability schema */
-  validate(tool: string, method: string, args: any[]): { valid: boolean; errors?: string[] };
+  validate(tool: string, method: string, args: unknown[]): { valid: boolean; errors?: string[] };
   /** Get all registered tool names */
   getToolNames(): string[];
 }

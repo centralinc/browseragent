@@ -122,9 +122,9 @@ export function registerPlaywrightCapabilities(): void {
   PLAYWRIGHT_CAPABILITIES.forEach(capability => {
     try {
       registry.register(capability);
-    } catch (error) {
-      // Capability might already be registered
-      console.debug(`Capability ${capability.tool}:${capability.method} already registered`);
-    }
+      } catch {
+    // Capability might already be registered
+    console.debug(`Capability ${capability.tool}:${capability.method} already registered`);
+  }
   });
 }

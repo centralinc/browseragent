@@ -22,8 +22,8 @@ import { getToolRegistry } from './registry';
  * }
  * ```
  */
-export function capability(options: CapabilityDecoratorOptions) {
-  return function (target: any, propertyKey: string, descriptor: PropertyDescriptor) {
+export function capability(options: CapabilityDecoratorOptions): MethodDecorator {
+  return function (target: unknown, propertyKey: string | symbol, descriptor: PropertyDescriptor): PropertyDescriptor {
     // Store metadata on the method
     const metadata = Reflect.getMetadata('capability:metadata', target, propertyKey) || {};
     Reflect.defineMetadata('capability:metadata', { ...metadata, ...options }, target, propertyKey);
@@ -38,8 +38,8 @@ export function capability(options: CapabilityDecoratorOptions) {
 /**
  * Parameter schema decorator for capability methods
  */
-export function capabilitySchema(schema: z.ZodSchema<any>) {
-  return function (target: any, propertyKey: string, descriptor: PropertyDescriptor) {
+export function capabilitySchema(schema: z.ZodSchema<unknown>): MethodDecorator {
+  return function (target: unknown, propertyKey: string | symbol, descriptor: PropertyDescriptor): PropertyDescriptor {
     Reflect.defineMetadata('capability:schema', schema, target, propertyKey);
     return descriptor;
   };
@@ -50,7 +50,7 @@ export function capabilitySchema(schema: z.ZodSchema<any>) {
 /**
  * Register all decorated capabilities from a class instance
  */
-export function registerCapabilities(instance: any, toolName?: string): void {
+export function registerCapabilities(instance: object, toolName?: string): void {
   const registry = getToolRegistry();
   const prototype = Object.getPrototypeOf(instance);
   
@@ -82,7 +82,7 @@ export function registerCapabilities(instance: any, toolName?: string): void {
       displayName: metadata.displayName || method,
       description: metadata.description || '',
       usage: metadata.usage || '',
-      schema: schema || z.any(),
+      schema: schema || z.unknown(),
       enabled: metadata.enabled !== false,
     };
     
@@ -93,14 +93,15 @@ export function registerCapabilities(instance: any, toolName?: string): void {
 /**
  * Class decorator to automatically register capabilities
  */
-export function withCapabilities<T extends { new(...args: any[]): {} }>(constructor: T) {
+export function withCapabilities<T extends { new(...args: unknown[]): object }>(constructor: T): T {
   return class extends constructor {
-    constructor(...args: any[]) {
+    constructor(...args: unknown[]) {
       super(...args);
-      const toolName = (this as any).name || constructor.name.toLowerCase().replace(/tool$/, '');
+      const instance = this as unknown as { name?: string };
+      const toolName = instance.name || constructor.name.toLowerCase().replace(/tool$/, '');
       registerCapabilities(this, toolName);
     }
-  };
+  } as T;
 }
 
 /**
@@ -110,7 +111,7 @@ export function defineCapability(
   tool: string,
   method: string,
   options: Omit<CapabilityDecoratorOptions, 'tool'> & {
-    schema?: z.ZodSchema<any>;
+    schema?: z.ZodSchema<unknown>;
   }
 ): ToolCapability {
   return {
@@ -119,7 +120,7 @@ export function defineCapability(
     displayName: options.displayName,
     description: options.description,
     usage: options.usage,
-    schema: options.schema || z.any(),
+    schema: options.schema || z.unknown(),
     enabled: options.enabled !== false,
   };
 }

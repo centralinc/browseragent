@@ -73,7 +73,7 @@ export class DefaultToolRegistry implements ToolRegistry {
     return Array.from(tools);
   }
 
-  validate(tool: string, method: string, args: any[]): { valid: boolean; errors?: string[] } {
+  validate(tool: string, method: string, args: unknown[]): { valid: boolean; errors?: string[] } {
     const capability = this.get(tool, method);
     if (!capability) {
       return { valid: false, errors: [`Unknown capability: ${tool}:${method}`] };
@@ -97,7 +97,7 @@ export class DefaultToolRegistry implements ToolRegistry {
               acc[keys[idx]] = val;
             }
             return acc;
-          }, {} as Record<string, any>);
+          }, {} as Record<string, unknown>);
           capability.schema.parse(obj);
         } else {
           // For methods expecting array input

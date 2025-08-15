@@ -14,6 +14,7 @@ Our goal is to expose a **highly configurable, fine-grained agent**—dial it up
 >
 > | ⚙️  Capability | What it does | Why it rocks |
 > |--------------|--------------|--------------|
+> | **Tool Registry** | Generic capability system for any tool | Extend agents with Slack, Discord, databases, etc. |
 > | **Smart Scrolling** | 90 % viewport scrolls + instant text navigation | Turbo page traversal **and** zero-waste dropdown control |
 > | **Typing Modes** | Fill, fast-character, human-character | Match CAPTCHA tolerances or burn through inputs |
 > | **Signal Bus** | Pause / Resume / Cancel at any step | Add human QA checkpoints in production |
@@ -73,6 +74,74 @@ const urls = await agent.execute(
 - For buttons or links, use their label text (e.g., "Download", "Read More", "View Details")
 - For articles or stories, use their title text
 - The tool will automatically handle finding the associated URL
+
+---
+
+### 🛠️ Tool Registry System
+
+Extend your agents with **any external tool** using our flexible capability system - not just Playwright!
+
+#### How It Works
+
+The Tool Registry provides a simple, type-safe way to add capabilities to your agents:
+
+```typescript
+import { registerPlaywrightCapability } from '@onkernel/cu-playwright-ts';
+
+// Add a custom Playwright capability
+registerPlaywrightCapability({
+  method: 'check_all',
+  displayName: 'Check All Checkboxes',
+  description: 'Check all checkboxes matching a pattern',
+  usage: 'Check multiple checkboxes at once by pattern',
+  schema: z.tuple([z.string()]),
+  handler: async (page, args) => {
+    const [pattern] = args;
+    await page.locator(`input[type="checkbox"]${pattern}`).check();
+    return { output: `Checked all checkboxes matching ${pattern}` };
+  },
+});
+
+// Use it naturally in prompts
+await agent.execute('Check all the "Accept Terms" checkboxes on this form');
+```
+
+#### Extend Beyond Playwright
+
+The registry supports **any tool type**. Here's a Slack integration example:
+
+```typescript
+// Create a Slack tool
+class SlackTool implements ComputerUseTool {
+  name: 'slack' = 'slack';
+  // ... implementation
+}
+
+// Use it with the agent
+const agent = new ComputerUseAgent({
+  apiKey: ANTHROPIC_API_KEY,
+  page,
+  additionalTools: [new SlackTool(SLACK_TOKEN)],
+});
+
+// Natural language Slack operations
+await agent.execute('Send a message to #general saying the deployment is complete');
+await agent.execute('Navigate to the metrics dashboard and share a screenshot in #analytics');
+```
+
+**Supported Tool Types**:
+- 📧 **Communication**: Slack, Discord, Teams, Email
+- 🗄️ **Data**: Databases, APIs, File systems
+- 🔧 **Utilities**: AWS, GitHub, Jira
+- 🤖 **Custom**: Any tool you can imagine!
+
+**Key Features**:
+- Type-safe with Zod schemas
+- Auto-generated documentation
+- Natural language prompts
+- No complex inheritance needed
+
+See the [Tool Registry Design Doc](./design-docs/tool-registry.md) for complete examples.
 
 ---
 
@@ -435,6 +504,40 @@ const result = await agent.execute(
     thinkingBudget: 4096, // More thinking tokens for complex tasks
   }
 );
+```
+
+### Tool Registry API
+
+The SDK exports functions for extending capabilities:
+
+```typescript
+import {
+  registerPlaywrightCapability,
+  getToolRegistry,
+  defineCapability,
+} from '@onkernel/cu-playwright-ts';
+
+// Register a new Playwright capability
+registerPlaywrightCapability({
+  method: 'custom_action',
+  displayName: 'Custom Action',
+  description: 'Performs a custom browser action',
+  usage: 'Detailed usage instructions',
+  schema: z.object({ selector: z.string() }),
+  handler: async (page, args) => {
+    // Implementation
+    return { output: 'Success' };
+  },
+});
+
+// Register capabilities for other tools
+const registry = getToolRegistry();
+registry.register(defineCapability('slack', 'send_message', {
+  displayName: 'Send Message',
+  description: 'Send a Slack message',
+  usage: 'Send message to channel',
+  schema: z.tuple([z.string(), z.string()]),
+}));
 ```
 
 ## Environment Setup
