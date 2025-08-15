@@ -11,3 +11,22 @@ export type {
   ScrollingConfig
 } from './tools/types/base';
 export type { AgentController, AgentControllerEvents, ControlSignal, SignalEvent } from './agent';
+
+// Export tool registry system
+export {
+  getToolRegistry,
+  resetToolRegistry,
+  defineCapability,
+  capability,
+  capabilitySchema,
+  withCapabilities,
+  registerPlaywrightCapabilities,
+  PLAYWRIGHT_CAPABILITIES
+} from './tools/registry';
+export type {
+  ToolCapability,
+  ToolRegistry,
+  ToolRegistryConfig,
+  CapabilityDecoratorOptions,
+  RegistryAwareTool
+} from './tools/registry';
