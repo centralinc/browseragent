@@ -10,7 +10,6 @@ async function textResponseExample(): Promise<void> {
   
   const browser = await chromium.launch({ headless: false });
   const page = await browser.newPage();
-  await page.goto("https://news.ycombinator.com/");
   
   try {
     console.log('\n=== Text Response Examples ===');
@@ -18,6 +17,9 @@ async function textResponseExample(): Promise<void> {
       apiKey: ANTHROPIC_API_KEY,
       page,
     });
+    
+    // Navigate to website using the agent
+    await agent.execute('Navigate to news.ycombinator.com');
     
     // Text response with action
     const topStory = await agent.execute('Tell me the title of the top story on this page');
@@ -42,7 +44,6 @@ async function structuredResponseExample(): Promise<void> {
   
   const browser = await chromium.launch({ headless: false });
   const page = await browser.newPage();
-  await page.goto("https://news.ycombinator.com/");
   
   try {
     console.log('\n=== Structured Response Examples ===');
@@ -50,6 +51,9 @@ async function structuredResponseExample(): Promise<void> {
       apiKey: ANTHROPIC_API_KEY,
       page,
     });
+    
+    // Navigate to website using the agent (will use existing page if already there)
+    await agent.execute('Go to https://news.ycombinator.com/');
     
     // Define schema for a single story
     const HackerNewsStory = z.object({

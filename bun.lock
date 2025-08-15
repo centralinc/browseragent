@@ -5,18 +5,20 @@
       "name": "@onkernel/cu-playwright-ts",
       "dependencies": {
         "@anthropic-ai/sdk": "0.52.0",
+        "@types/luxon": "^3.6.2",
         "luxon": "3.6.0",
+        "reflect-metadata": "^0.2.1",
         "zod": "^3.25.0",
         "zod-to-json-schema": "^3.23.1",
       },
       "devDependencies": {
         "@eslint/js": "^9.0.0",
-        "@types/luxon": "^3.6.2",
         "@types/node": "^24.1.0",
         "@typescript-eslint/eslint-plugin": "^8.0.0",
         "@typescript-eslint/parser": "^8.0.0",
         "eslint": "^9.0.0",
         "eslint-config-prettier": "^9.0.0",
+        "typescript": "^5.0.0",
       },
       "peerDependencies": {
         "playwright": "^1.52.0",
@@ -234,6 +236,8 @@
     "punycode": ["punycode@2.3.1", "", {}, "sha512-vYt7UD1U9Wg6138shLtLOvdAu+8DsC/ilFtEVHcH+wydcSpNE20AfSOduf6MkRFahL5FY7X1oU7nKVZFtfq8Fg=="],
 
     "queue-microtask": ["queue-microtask@1.2.3", "", {}, "sha512-NuaNSa6flKT5JaSYQzJok04JzTL1CA6aGhv5rfLW3PgqA+M2ChpZQnAC8h8i4ZFkBS8X5RqkDBHA7r4hej3K9A=="],
+
+    "reflect-metadata": ["reflect-metadata@0.2.2", "", {}, "sha512-urBwgfrvVP/eAyXx4hluJivBKzuEbSQs9rKWCrCkbSxNv8mxPcUZKeuoF3Uy4mJl3Lwprp6yy5/39VWigZ4K6Q=="],
 
     "resolve-from": ["resolve-from@4.0.0", "", {}, "sha512-pb/MYmXstAkysRFx8piNI1tGFNQIFA3vkE3Gq4EuA1dF6gHp/+vgZqsCGJapvy8N3Q+4o7FwvquPJcnZ7RYy4g=="],
 

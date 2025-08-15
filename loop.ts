@@ -14,63 +14,22 @@ import type { ExecutionConfig } from './tools/types/base';
 const SYSTEM_PROMPT = `<SYSTEM_CAPABILITY>
 * You are utilising an Ubuntu virtual machine using ${process.arch} architecture with internet access.
 * When you connect to the display, CHROMIUM IS ALREADY OPEN. The url bar is not visible but it is there.
-* If you need to navigate to a new page, use ctrl+l to focus the url bar and then enter the url.
-* You won't be able  to see the url bar from the screenshot but ctrl-l still works.
+* If you need to navigate to a new page, you can use the playwright 'goto' method for faster navigation.
 * When viewing a page it can be helpful to zoom out so that you can see everything on the page.
 * Either that, or make sure you scroll down to see everything before deciding something isn't available.
 * When using your computer function calls, they take a while to run and send back to you.
 * For efficient page navigation, use LARGE scroll amounts (80-90) to quickly move through content.
 * Only use small scroll amounts (5-15) when scrolling within specific UI elements like dropdowns or small lists.
 * Page-level scrolling with scroll_amount 80-90 shows mostly new content while keeping some overlap for context.
-
-SMART SCROLLING TO TEXT:
-* When scrolling in a dropdown/list to find SPECIFIC text you can see or expect to see, try playwright first:
-  Example: {"name": "playwright", "input": {"method": "scroll_to_text", "args": ["Wyoming"]}}
-* Use this when:
-  - You know the exact text to find (e.g., user wants "Wyoming" and you see a state list)
-  - The text is likely in a scrollable container (dropdown, list, sidebar)
-  - You want to avoid multiple scroll attempts
-* The tool searches visible scrollable containers first, then the whole page
-* If it fails (text not found, not in scrollable area), fall back to regular computer scroll
-* DO NOT use this for general page navigation - use large scroll amounts (80-90) instead
-* Where possible/feasible, try to chain multiple of these calls all into one function calls request.
 * The current date is ${DateTime.now().toFormat('EEEE, MMMM d, yyyy')}
 
-PLAYWRIGHT TOOL:
-* You have access to a 'playwright' tool that provides browser automation capabilities
-* Supports 'extract_url' for extracting URLs and 'scroll_to_text' for precise scrolling
-
-HOW TO USE SCROLL_TO_TEXT:
-1. When you need to find specific text in a dropdown/list, use this FIRST
-2. Call format: {"name": "playwright", "input": {"method": "scroll_to_text", "args": ["exact text"]}}
-3. Only provide the text you're looking for - no CSS selectors needed
-4. This instantly scrolls the text into view without multiple attempts
-5. If it fails, fall back to regular computer scroll with small amounts (5-15)
-
-HOW TO USE EXTRACT_URL:
-1. First, take a screenshot to see what's on the page
-2. Identify the visible text of the link/button you want to extract the URL from
-3. Call the playwright tool with this exact format:
-   {
-     "name": "playwright",
-     "input": {
-       "method": "extract_url",
-       "args": ["exact visible text here"]
-     }
-   }
-4. The tool will find the element containing that text and extract its URL
-
-EXAMPLES:
-- To get URL from a link that says "Read more": args: ["Read more"]
-- To get URL from a story titled "New AI breakthrough": args: ["New AI breakthrough"]
-- To get URL from a button labeled "Download PDF": args: ["Download PDF"]
-
-IMPORTANT: Always use the EXACT text you can see on the page as the argument
+${PlaywrightTool.getCapabilityDocs()}
 </SYSTEM_CAPABILITY>
 
 <IMPORTANT>
 * When using Chromium, if a startup wizard appears, IGNORE IT. Do not even click "skip this step".
 * Instead, click on the search bar on the center of the screen where it says "Search or enter address", and enter the appropriate search term or URL there.
+* For faster navigation, prefer using the playwright 'goto' method over manually typing URLs.
 </IMPORTANT>`;
 
 // Add new type definitions
