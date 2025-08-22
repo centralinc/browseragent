@@ -8,6 +8,9 @@ import { makeApiToolResult } from './utils/tool-results';
 import { ComputerTool20241022, ComputerTool20250124 } from './tools/computer';
 import type { ActionParams } from './tools/types/computer';
 import { Action } from './tools/types/computer';
+import type { ExecutionConfig } from './tools/types/base';
+import type { PlaywrightCapabilityDef } from './tools/playwright-capabilities';
+import type { ComputerUseTool } from './tools/types/base';
 
 // System prompt optimized for the environment
 const SYSTEM_PROMPT = `<SYSTEM_CAPABILITY>
@@ -55,6 +58,10 @@ export async function samplingLoop({
   thinkingBudget,
   tokenEfficientToolsBeta = false,
   playwrightPage,
+  signalBus,
+  executionConfig,
+  playwrightCapabilities = [],
+  tools = [],
 }: {
   model: string;
   systemPromptSuffix?: string;
@@ -66,11 +73,27 @@ export async function samplingLoop({
   thinkingBudget?: number;
   tokenEfficientToolsBeta?: boolean;
   playwrightPage: Page;
+  signalBus?: import('./signals/bus').SignalBus;
+  executionConfig?: ExecutionConfig;
+  playwrightCapabilities?: PlaywrightCapabilityDef[];
+  tools?: ComputerUseTool[];
 }): Promise<BetaMessageParam[]> {
   const selectedVersion = toolVersion || DEFAULT_TOOL_VERSION;
   const toolGroup = TOOL_GROUPS_BY_VERSION[selectedVersion];
   const toolCollection = new ToolCollection(...toolGroup.tools.map((Tool: typeof ComputerTool20241022 | typeof ComputerTool20250124) => new Tool(playwrightPage)));
   
+  // Create computer tools
+  const computerTools = toolGroup.tools.map((Tool: typeof ComputerTool20241022 | typeof ComputerTool20250124) => new Tool(playwrightPage, executionConfig));
+  
+  // Create playwright tool with instance-specific capabilities
+  const playwrightTool = new PlaywrightTool(playwrightPage, playwrightCapabilities);
+
+  // Combine all tools (computer tools + playwright tool + additional tools)
+  const toolCollection = new ToolCollection(...computerTools, playwrightTool, ...tools);
+
+  // Provide Page access to browser-aware tools
+  toolCollection.setPage(playwrightPage);
+
   const system: BetaTextBlock = {
     type: 'text',
     text: `${SYSTEM_PROMPT}${systemPromptSuffix ? ' ' + systemPromptSuffix : ''}`,
@@ -226,6 +249,10 @@ export async function computerUseLoop({
   thinkingBudget = 1024,
   tokenEfficientToolsBeta = false,
   onlyNMostRecentImages,
+  signalBus,
+  executionConfig,
+  playwrightCapabilities = [],
+  tools = [],
 }: {
   query: string;
   apiKey: string;
@@ -237,6 +264,10 @@ export async function computerUseLoop({
   thinkingBudget?: number;
   tokenEfficientToolsBeta?: boolean;
   onlyNMostRecentImages?: number;
+  signalBus?: import('./signals/bus').SignalBus;
+  executionConfig?: ExecutionConfig;
+  playwrightCapabilities?: PlaywrightCapabilityDef[];
+  tools?: ComputerUseTool[];
 }): Promise<BetaMessageParam[]> {
   return samplingLoop({
     model,
@@ -252,5 +283,9 @@ export async function computerUseLoop({
     tokenEfficientToolsBeta,
     onlyNMostRecentImages,
     playwrightPage,
+    signalBus,
+    executionConfig,
+    playwrightCapabilities,
+    tools,
   });
 }

@@ -2,6 +2,68 @@ import { z } from 'zod';
 import zodToJsonSchema from 'zod-to-json-schema';
 import type { Page } from 'playwright';
 import { computerUseLoop } from './loop';
+import { SignalBus, type SignalEventPayloadMap } from './signals/bus';
+import type { ControlSignal, SignalEvent } from './signals/bus';
+import type { ExecutionConfig } from './tools/types/base';
+import type { PlaywrightCapabilityDef } from './tools/playwright-capabilities';
+import type { ComputerUseTool } from './tools/types/base';
+
+/**
+ * Event callback interfaces for agent controller
+ */
+export interface AgentControllerEvents {
+  onPause: (data: { at: Date; step: number }) => void;
+  onResume: (data: { at: Date; step: number }) => void;
+  onCancel: (data: { at: Date; step: number; reason?: string }) => void;
+  onError: (data: { at: Date; step: number; error: unknown }) => void;
+}
+
+/**
+ * Controller interface for managing agent execution signals
+ */
+export interface AgentController {
+  /** Send a control signal to the running agent */
+  signal(signal: 'pause' | 'resume' | 'cancel'): void;
+  /** Subscribe to agent events - returns unsubscribe function */
+  on<K extends keyof AgentControllerEvents>(
+    event: K,
+    callback: AgentControllerEvents[K]
+  ): () => void;
+}
+
+/**
+ * Implementation of AgentController that wraps a SignalBus
+ */
+export class AgentControllerImpl implements AgentController {
+  constructor(private readonly bus: SignalBus) {}
+
+  signal(signal: 'pause' | 'resume' | 'cancel'): void {
+    this.bus.send(signal as ControlSignal);
+  }
+
+  on<K extends keyof AgentControllerEvents>(
+    event: K,
+    callback: AgentControllerEvents[K]
+  ): () => void {
+    // Pass through the full payload from SignalBus
+    return this.bus.on(event as SignalEvent, (payload) => {
+      switch (event) {
+        case 'onPause':
+          (callback as AgentControllerEvents['onPause'])(payload as SignalEventPayloadMap['onPause']);
+          break;
+        case 'onResume':
+          (callback as AgentControllerEvents['onResume'])(payload as SignalEventPayloadMap['onResume']);
+          break;
+        case 'onCancel':
+          (callback as AgentControllerEvents['onCancel'])(payload as SignalEventPayloadMap['onCancel']);
+          break;
+        case 'onError':
+          (callback as AgentControllerEvents['onError'])(payload as SignalEventPayloadMap['onError']);
+          break;
+      }
+    });
+  }
+}
 
 /**
  * Computer Use Agent for automating browser interactions with Claude
@@ -15,35 +77,70 @@ export class ComputerUseAgent {
   private apiKey: string;
   private model: string;
   private page: Page;
+  private signalBus: SignalBus;
+  private executionConfig?: ExecutionConfig;
+  private playwrightCapabilities: PlaywrightCapabilityDef[];
+  private tools: ComputerUseTool[];
+
+  /** Expose control-flow signals */
+  public readonly controller: AgentController;
 
   /**
    * Create a new ComputerUseAgent instance
-   * 
+   *
    * @param options - Configuration options
    * @param options.apiKey - Anthropic API key (get one from https://console.anthropic.com/)
    * @param options.page - Playwright page instance to control
    * @param options.model - Anthropic model to use (defaults to claude-sonnet-4-20250514)
    * 
+   * @param options.playwrightCapabilities - Custom Playwright capabilities for this agent instance
+   * @param options.tools - Additional tools (non-Playwright) for this agent instance
+   *
    * @see https://docs.anthropic.com/en/docs/agents-and-tools/tool-use/computer-use-tool#model-compatibility
    */
   constructor({
     apiKey,
     page,
     model = 'claude-sonnet-4-20250514',
+    executionConfig,
+    playwrightCapabilities = [],
+    tools = [],
   }: {
     /** Anthropic API key for authentication */
     apiKey: string;
     /** Playwright page instance to control */
     page: Page;
-    /** 
+    /**
      * Anthropic model to use for computer use tasks
      * @default 'claude-sonnet-4-20250514'
      */
     model?: string;
+    /**
+     * Execution behavior configuration
+     * Controls typing speed, screenshot settings, mouse behavior, etc.
+     */
+    executionConfig?: ExecutionConfig;
+    /**
+     * Custom Playwright capabilities for this agent instance
+     * These are merged with built-in capabilities
+     */
+    playwrightCapabilities?: PlaywrightCapabilityDef[];
+    /**
+     * Additional tools for this agent instance
+     * These can be any ComputerUseTool implementations
+     */
+    tools?: ComputerUseTool[];
   }) {
     this.apiKey = apiKey;
     this.model = model;
     this.page = page;
+    this.executionConfig = executionConfig;
+    this.playwrightCapabilities = playwrightCapabilities;
+    this.tools = tools;
+
+    // NEW: create the signal bus + controller up-front so callers can pause *during* first run
+    this.signalBus = new SignalBus();
+    this.controller = new AgentControllerImpl(this.signalBus);
   }
 
   /**
@@ -112,6 +209,10 @@ Respond ONLY with the JSON object, no additional text.`;
       model: this.model,
       systemPromptSuffix,
       thinkingBudget,
+      signalBus: this.signalBus,
+      executionConfig: this.executionConfig,
+      playwrightCapabilities: this.playwrightCapabilities,
+      tools: this.tools,
     });
 
     const lastMessage = messages[messages.length - 1];
