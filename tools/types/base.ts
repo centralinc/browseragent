@@ -41,6 +41,13 @@ export interface ComputerUseTool {
 }
 
 /**
+ * Tool call parameters that may include browser access
+ */
+export interface ToolCallParams extends Record<string, unknown> {
+  _page?: import('playwright').Page; 
+}
+
+/**
  * Configuration options for agent execution behavior
  */
 export interface ExecutionConfig {

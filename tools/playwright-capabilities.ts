@@ -222,21 +222,21 @@ export function getPlaywrightCapabilities(): PlaywrightCapabilityDef[] {
 /**
  * Generate documentation for Playwright capabilities
  */
-export function generatePlaywrightDocs(): string {
-  const capabilities = getPlaywrightCapabilities();
+export function generatePlaywrightDocs(capabilities?: PlaywrightCapabilityDef[]): string {
+  const capsToUse = capabilities || getPlaywrightCapabilities();
   const sections: string[] = [
     'PLAYWRIGHT TOOL CAPABILITIES:',
     '* You have access to a \'playwright\' tool that provides browser automation capabilities:'
   ];
 
   // Brief overview
-  capabilities.forEach(cap => {
+  capsToUse.forEach(cap => {
     sections.push(`  - '${cap.method}': ${cap.description}`);
   });
   sections.push('');
 
   // Detailed usage
-  capabilities.forEach(cap => {
+  capsToUse.forEach(cap => {
     sections.push(`HOW TO USE ${cap.method.toUpperCase()}:`);
     const usageLines = cap.usage.split('\n').filter(Boolean);
     usageLines.forEach((line, index) => {

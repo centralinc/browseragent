@@ -5,6 +5,8 @@ import { computerUseLoop } from './loop';
 import { SignalBus, type SignalEventPayloadMap } from './signals/bus';
 import type { ControlSignal, SignalEvent } from './signals/bus';
 import type { ExecutionConfig } from './tools/types/base';
+import type { PlaywrightCapabilityDef } from './tools/playwright-capabilities';
+import type { ComputerUseTool } from './tools/types/base';
 
 /**
  * Event callback interfaces for agent controller
@@ -77,19 +79,23 @@ export class ComputerUseAgent {
   private page: Page;
   private signalBus: SignalBus;
   private executionConfig?: ExecutionConfig;
+  private playwrightCapabilities: PlaywrightCapabilityDef[];
+  private tools: ComputerUseTool[];
 
   /** Expose control-flow signals */
   public readonly controller: AgentController;
 
   /**
    * Create a new ComputerUseAgent instance
-   * 
+   *
    * @param options - Configuration options
    * @param options.apiKey - Anthropic API key (get one from https://console.anthropic.com/)
    * @param options.page - Playwright page instance to control
    * @param options.model - Anthropic model to use (defaults to claude-sonnet-4-20250514)
-   * @param options.toolConfig - Tool behavior configuration (typing speed, screenshots, etc.)
-   * 
+   * @param options.executionConfig - Tool behavior configuration (typing speed, screenshots, etc.)
+   * @param options.playwrightCapabilities - Custom Playwright capabilities for this agent instance
+   * @param options.tools - Additional tools for this agent instance
+   *
    * @see https://docs.anthropic.com/en/docs/agents-and-tools/tool-use/computer-use-tool#model-compatibility
    */
   constructor({
@@ -97,12 +103,14 @@ export class ComputerUseAgent {
     page,
     model = 'claude-sonnet-4-20250514',
     executionConfig,
+    playwrightCapabilities = [],
+    tools = [],
   }: {
     /** Anthropic API key for authentication */
     apiKey: string;
     /** Playwright page instance to control */
     page: Page;
-    /** 
+    /**
      * Anthropic model to use for computer use tasks
      * @default 'claude-sonnet-4-20250514'
      */
@@ -112,11 +120,23 @@ export class ComputerUseAgent {
      * Controls typing speed, screenshot settings, mouse behavior, etc.
      */
     executionConfig?: ExecutionConfig;
+    /**
+     * Custom Playwright capabilities for this agent instance
+     * These are merged with built-in capabilities
+     */
+    playwrightCapabilities?: PlaywrightCapabilityDef[];
+    /**
+     * Additional tools for this agent instance
+     * These can be any ComputerUseTool implementations
+     */
+    tools?: ComputerUseTool[];
   }) {
     this.apiKey = apiKey;
     this.model = model;
     this.page = page;
     this.executionConfig = executionConfig;
+    this.playwrightCapabilities = playwrightCapabilities;
+    this.tools = tools;
 
     // NEW: create the signal bus + controller up-front so callers can pause *during* first run
     this.signalBus = new SignalBus();
@@ -191,6 +211,8 @@ Respond ONLY with the JSON object, no additional text.`;
       thinkingBudget,
       signalBus: this.signalBus,
       executionConfig: this.executionConfig,
+      playwrightCapabilities: this.playwrightCapabilities,
+      tools: this.tools,
     });
 
     const lastMessage = messages[messages.length - 1];

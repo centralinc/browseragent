@@ -16,13 +16,27 @@ export class PlaywrightTool implements ComputerUseTool {
   protected page: Page;
   protected capabilities: Map<string, PlaywrightCapabilityDef>;
 
-  constructor(page: Page) {
+  constructor(page: Page, instanceCapabilities: PlaywrightCapabilityDef[] = []) {
     this.page = page;
-    this.capabilities = PLAYWRIGHT_CAPABILITIES;
+
+    // Start with built-in capabilities
+    this.capabilities = new Map(PLAYWRIGHT_CAPABILITIES);
+
+    // Merge instance-specific capabilities (they can override built-ins)
+    for (const capability of instanceCapabilities) {
+      this.capabilities.set(capability.method, capability);
+    }
   }
 
   /**
    * Get capability documentation for including in system prompt
+   */
+  getCapabilityDocs(): string {
+    return generatePlaywrightDocs(Array.from(this.capabilities.values()));
+  }
+
+  /**
+   * Static method to get capability docs (for system prompt generation)
    */
   static getCapabilityDocs(): string {
     return generatePlaywrightDocs();

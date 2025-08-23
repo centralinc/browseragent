@@ -9,6 +9,8 @@ import { ComputerTool20241022, ComputerTool20250124 } from './tools/computer';
 import { PlaywrightTool } from './tools/playwright';
 import { Action } from './tools/types/computer';
 import type { ExecutionConfig } from './tools/types/base';
+import type { PlaywrightCapabilityDef } from './tools/playwright-capabilities';
+import type { ComputerUseTool } from './tools/types/base';
 
 // System prompt optimized for the environment
 const SYSTEM_PROMPT = `<SYSTEM_CAPABILITY>
@@ -22,8 +24,6 @@ const SYSTEM_PROMPT = `<SYSTEM_CAPABILITY>
 * Only use small scroll amounts (5-15) when scrolling within specific UI elements like dropdowns or small lists.
 * Page-level scrolling with scroll_amount 80-90 shows mostly new content while keeping some overlap for context.
 * The current date is ${DateTime.now().toFormat('EEEE, MMMM d, yyyy')}
-
-${PlaywrightTool.getCapabilityDocs()}
 </SYSTEM_CAPABILITY>
 
 <IMPORTANT>
@@ -61,6 +61,8 @@ export async function samplingLoop({
   playwrightPage,
   signalBus,
   executionConfig,
+  playwrightCapabilities = [],
+  tools = [],
 }: {
   model: string;
   systemPromptSuffix?: string;
@@ -74,6 +76,8 @@ export async function samplingLoop({
   playwrightPage: Page;
   signalBus?: import('./signals/bus').SignalBus;
   executionConfig?: ExecutionConfig;
+  playwrightCapabilities?: PlaywrightCapabilityDef[];
+  tools?: ComputerUseTool[];
 }): Promise<BetaMessageParam[]> {
   const selectedVersion = toolVersion || DEFAULT_TOOL_VERSION;
   const toolGroup = TOOL_GROUPS_BY_VERSION[selectedVersion];
@@ -81,15 +85,25 @@ export async function samplingLoop({
   // Create computer tools
   const computerTools = toolGroup.tools.map((Tool: typeof ComputerTool20241022 | typeof ComputerTool20250124) => new Tool(playwrightPage, executionConfig));
   
-  // Create playwright tool
-  const playwrightTool = new PlaywrightTool(playwrightPage);
+  // Create playwright tool with instance-specific capabilities
+  const playwrightTool = new PlaywrightTool(playwrightPage, playwrightCapabilities);
   
-  // Combine all tools
-  const toolCollection = new ToolCollection(...computerTools, playwrightTool);
+  // Combine all tools (computer tools + playwright tool + additional tools)
+  const toolCollection = new ToolCollection(...computerTools, playwrightTool, ...tools);
+
+  // Provide Page access to browser-aware tools
+  toolCollection.setPage(playwrightPage);
+
+  // Generate system prompt with instance-specific capabilities
+  const capabilityDocs = playwrightCapabilities.length > 0
+    ? playwrightTool.getCapabilityDocs()
+    : PlaywrightTool.getCapabilityDocs();
 
   const system: BetaTextBlock = {
     type: 'text',
-    text: `${SYSTEM_PROMPT}${systemPromptSuffix ? ' ' + systemPromptSuffix : ''}`,
+    text: `${SYSTEM_PROMPT}${systemPromptSuffix ? ' ' + systemPromptSuffix : ''}
+
+${capabilityDocs}`,
   };
 
   let stepIndex = 0;
@@ -268,6 +282,8 @@ export async function computerUseLoop({
   onlyNMostRecentImages,
   signalBus,
   executionConfig,
+  playwrightCapabilities = [],
+  tools = [],
 }: {
   query: string;
   apiKey: string;
@@ -281,6 +297,8 @@ export async function computerUseLoop({
   onlyNMostRecentImages?: number;
   signalBus?: import('./signals/bus').SignalBus;
   executionConfig?: ExecutionConfig;
+  playwrightCapabilities?: PlaywrightCapabilityDef[];
+  tools?: ComputerUseTool[];
 }): Promise<BetaMessageParam[]> {
   const startTime = Date.now();
   const messages = await samplingLoop({
@@ -299,6 +317,8 @@ export async function computerUseLoop({
     playwrightPage,
     signalBus,
     executionConfig,
+    playwrightCapabilities,
+    tools,
   });
   const elapsed = ((Date.now() - startTime) / 1000).toFixed(2);
   console.log(`⏱️  Agent finished in ${elapsed}s`);
