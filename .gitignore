@@ -38,8 +38,12 @@ coverage/
 .temp/
 .tmp/
 
+# Browser data
+user-data/
+
 # Examples with sensitive data
 example-beam-benefits.ts
+examples/example-beam.ts
 
 # Test package folder
 test-published-package/
