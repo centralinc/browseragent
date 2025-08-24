@@ -23,7 +23,7 @@ import { getToolRegistry } from './registry';
  * ```
  */
 export function capability(options: CapabilityDecoratorOptions): MethodDecorator {
-  return function (target: unknown, propertyKey: string | symbol, descriptor: PropertyDescriptor): PropertyDescriptor {
+  return function (target: object, propertyKey: string | symbol, descriptor: PropertyDescriptor): PropertyDescriptor {
     // Store metadata on the method
     const metadata = Reflect.getMetadata('capability:metadata', target, propertyKey) || {};
     Reflect.defineMetadata('capability:metadata', { ...metadata, ...options }, target, propertyKey);
@@ -39,13 +39,11 @@ export function capability(options: CapabilityDecoratorOptions): MethodDecorator
  * Parameter schema decorator for capability methods
  */
 export function capabilitySchema(schema: z.ZodSchema<unknown>): MethodDecorator {
-  return function (target: unknown, propertyKey: string | symbol, descriptor: PropertyDescriptor): PropertyDescriptor {
+  return function (target: object, propertyKey: string | symbol, descriptor: PropertyDescriptor): PropertyDescriptor {
     Reflect.defineMetadata('capability:schema', schema, target, propertyKey);
     return descriptor;
   };
 }
-
-
 
 /**
  * Register all decorated capabilities from a class instance
@@ -69,7 +67,7 @@ export function registerCapabilities(instance: object, toolName?: string): void 
     const schema = Reflect.getMetadata('capability:schema', prototype, methodName);
     
     // Use provided tool name or extract from metadata or instance
-    const tool = toolName || metadata.tool || instance.name || 'unknown';
+    const tool = toolName || metadata.tool || (instance as { name?: string }).name || 'unknown';
     
     // Extract method name from the function name
     // Assuming pattern like 'executeGoto' -> 'goto'
@@ -93,9 +91,11 @@ export function registerCapabilities(instance: object, toolName?: string): void 
 /**
  * Class decorator to automatically register capabilities
  */
-export function withCapabilities<T extends { new(...args: unknown[]): object }>(constructor: T): T {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export function withCapabilities<T extends { new(...args: any[]): object }>(constructor: T): T {
   return class extends constructor {
-    constructor(...args: unknown[]) {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    constructor(...args: any[]) {
       super(...args);
       const instance = this as unknown as { name?: string };
       const toolName = instance.name || constructor.name.toLowerCase().replace(/tool$/, '');
