@@ -4077,8 +4077,9 @@ class DefaultToolRegistry {
         } else if (capability.schema._def && capability.schema._def.typeName === "ZodObject" && args.length > 0) {
           const obj = args.reduce((acc, val, idx) => {
             const keys = Object.keys(capability.schema._def.shape || {});
-            if (keys[idx]) {
-              acc[keys[idx]] = val;
+            const key = keys[idx];
+            if (key) {
+              acc[key] = val;
             }
             return acc;
           }, {});
