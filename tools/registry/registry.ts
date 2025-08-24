@@ -95,8 +95,9 @@ export class DefaultToolRegistry implements ToolRegistry {
           const obj = args.reduce((acc: Record<string, unknown>, val, idx) => {
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
             const keys = Object.keys((capability.schema._def as any).shape || {});
-            if (keys[idx]) {
-              acc[keys[idx]] = val;
+            const key = keys[idx];
+            if (key) {
+              acc[key] = val;
             }
             return acc;
           }, {});
