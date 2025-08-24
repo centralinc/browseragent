@@ -56,6 +56,17 @@ export interface CapabilityDecoratorOptions {
   description: string;
   usage: string;
   enabled?: boolean;
+  category?: string;
+  examples?: Array<{
+    description: string;
+    input: Record<string, unknown>;
+    expectedOutput: string;
+  }>;
+  performance?: {
+    speed: string;
+    reliability: string;
+    notes: string;
+  };
 }
 
 /**

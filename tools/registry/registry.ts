@@ -89,15 +89,17 @@ export class DefaultToolRegistry implements ToolRegistry {
         // If schema expects an object but we have an array, convert
         if (args.length === 1 && typeof args[0] === 'object' && !Array.isArray(args[0])) {
           capability.schema.parse(args[0]);
-        } else if (capability.schema._def.typeName === 'ZodObject' && args.length > 0) {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        } else if (capability.schema._def && (capability.schema._def as any).typeName === 'ZodObject' && args.length > 0) {
           // For methods expecting named parameters
-          const obj = args.reduce((acc, val, idx) => {
-            const keys = Object.keys(capability.schema._def.shape || {});
+          const obj = args.reduce((acc: Record<string, unknown>, val, idx) => {
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            const keys = Object.keys((capability.schema._def as any).shape || {});
             if (keys[idx]) {
               acc[keys[idx]] = val;
             }
             return acc;
-          }, {} as Record<string, unknown>);
+          }, {});
           capability.schema.parse(obj);
         } else {
           // For methods expecting array input
