@@ -60,7 +60,7 @@ export class SignalBus {
         this.emit("onCancel", {
           at: new Date(),
           step: this.currentStep,
-          reason,
+          ...(reason && { reason }),
         });
         // Wake up any waiting resume promise
         if (this.resumeResolve) {

@@ -1,8 +1,6 @@
-# Computer Use Playwright SDK
+# @centralinc/browseragent
 
-> **Fork Notice**: This is a fork of [@onkernel/cu-playwright-ts](https://github.com/onkernel/cu-playwright-ts) with additional custom features.
-
-A TypeScript SDK that combines Anthropic's Computer Use capabilities with Playwright for browser automation tasks. This SDK provides a clean, type-safe interface for automating browser interactions using Claude's computer use abilities.
+Browser automation agent using Computer Use with Playwright. This TypeScript SDK combines Anthropic's Computer Use capabilities with Playwright to provide a clean, type-safe interface for automating browser interactions using Claude's computer use abilities.
 
 This fork is **purpose-built for high-volume RPA scenarios**—think large insurance back-offices, government form-filling portals, and other data-heavy workflows.  
 It runs **seamlessly inside Temporal workflows**: the agent's native `pause` / `resume` / `cancel` **signals** can be surfaced as **Temporal signals**, letting your orchestration layer coordinate long-running jobs while operators jump in when needed (no tight coupling between the human and Temporal itself).  
@@ -89,7 +87,7 @@ Extend your agents with **any external tool** using our flexible capability syst
 The Tool Registry provides a simple, type-safe way to add capabilities to your agents:
 
 ```typescript
-import { registerPlaywrightCapability } from "@onkernel/cu-playwright-ts";
+import { registerPlaywrightCapability } from "@centralinc/browseragent";
 
 // Add a custom Playwright capability
 registerPlaywrightCapability({
@@ -254,7 +252,7 @@ This fork includes a powerful configuration system that allows you to customize 
 #### Available Configuration Options
 
 ```typescript
-import type { ExecutionConfig } from "@onkernel/cu-playwright-ts";
+import type { ExecutionConfig } from "@centralinc/browseragent";
 
 const executionConfig: ExecutionConfig = {
   typing: {
@@ -371,18 +369,18 @@ Great for debugging, watchdog timeouts, and manual overrides.
 ## Installation
 
 ```bash
-npm install @onkernel/cu-playwright-ts
+npm install @centralinc/browseragent playwright @playwright/test
 # or
-yarn add @onkernel/cu-playwright-ts
+yarn add @centralinc/browseragent playwright @playwright/test
 # or
-bun add @onkernel/cu-playwright-ts
+pnpm add @centralinc/browseragent playwright @playwright/test
 ```
 
 ## Quick Start
 
 ```typescript
 import { chromium } from "playwright";
-import { ComputerUseAgent } from "@onkernel/cu-playwright-ts";
+import { ComputerUseAgent } from "@centralinc/browseragent";
 
 const browser = await chromium.launch({ headless: false });
 const page = await browser.newPage();
@@ -458,7 +456,7 @@ async execute<T = string>(
 ### Text Response
 
 ```typescript
-import { ComputerUseAgent } from "@onkernel/cu-playwright-ts";
+import { ComputerUseAgent } from "@centralinc/browseragent";
 
 // Navigate to the target page first
 await page.goto("https://news.ycombinator.com/");
@@ -478,7 +476,7 @@ console.log(result); // "Title of the top story"
 
 ```typescript
 import { z } from "zod";
-import { ComputerUseAgent } from "@onkernel/cu-playwright-ts";
+import { ComputerUseAgent } from "@centralinc/browseragent";
 
 const agent = new ComputerUseAgent({
   apiKey: process.env.ANTHROPIC_API_KEY!,
@@ -533,7 +531,7 @@ import {
   registerPlaywrightCapability,
   getToolRegistry,
   defineCapability,
-} from "@onkernel/cu-playwright-ts";
+} from "@centralinc/browseragent";
 
 // Register a new Playwright capability
 registerPlaywrightCapability({
