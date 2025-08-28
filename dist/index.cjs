@@ -4065,7 +4065,10 @@ class DefaultToolRegistry {
   validate(tool, method, args) {
     const capability = this.get(tool, method);
     if (!capability) {
-      return { valid: false, errors: [`Unknown capability: ${tool}:${method}`] };
+      return {
+        valid: false,
+        errors: [`Unknown capability: ${tool}:${method}`]
+      };
     }
     if (!this.config.validateInputs) {
       return { valid: true };
@@ -14362,7 +14365,9 @@ class ComputerTool {
           await this.page.keyboard.type(text, { delay: 0 });
         }
       } else {
-        await this.page.keyboard.type(text, { delay: typingConfig.characterDelay || 12 });
+        await this.page.keyboard.type(text, {
+          delay: typingConfig.characterDelay || 12
+        });
       }
     }
     const completionDelay = this.config.typing?.completionDelay || 100;
@@ -14557,7 +14562,11 @@ class ToolCollection {
 function responseToParams(response) {
   return response.content.map((block) => {
     if (block.type === "text" && block.text) {
-      return { type: "text", text: block.text, citations: block.citations || null };
+      return {
+        type: "text",
+        text: block.text,
+        citations: block.citations || null
+      };
     }
     if (block.type === "thinking") {
       const { thinking, signature, ...rest } = block;
@@ -14602,7 +14611,9 @@ function injectPromptCaching(messages) {
         breakpointsRemaining--;
         const lastContent = message.content[message.content.length - 1];
         if (lastContent) {
-          lastContent.cache_control = { type: "ephemeral" };
+          lastContent.cache_control = {
+            type: "ephemeral"
+          };
         }
       } else {
         const lastContent = message.content[message.content.length - 1];
@@ -14611,6 +14622,72 @@ function injectPromptCaching(messages) {
         }
         break;
       }
+    }
+  }
+}
+function truncateMessageHistory(messages, maxMessages = 20, preserveSystemMessage = true) {
+  if (messages.length <= maxMessages)
+    return;
+  const messagesToRemove = messages.length - maxMessages;
+  if (preserveSystemMessage && messages.length > 0) {
+    const firstUserMessage = messages.find((msg) => msg.role === "user");
+    if (firstUserMessage) {
+      const firstUserIndex = messages.indexOf(firstUserMessage);
+      const keepFromIndex = Math.max(firstUserIndex + 1, messagesToRemove);
+      messages.splice(1, keepFromIndex - 1);
+    } else {
+      messages.splice(0, messagesToRemove);
+    }
+  } else {
+    messages.splice(0, messagesToRemove);
+  }
+  for (const message of messages) {
+    if (message.role === "assistant" && Array.isArray(message.content)) {
+      const thinkingBlocks = message.content.filter((block) => typeof block === "object" && (block.type === "thinking" || block.type === "redacted_thinking"));
+      const textBlocks = message.content.filter((block) => typeof block === "object" && block.type === "text");
+      const toolUseBlocks = message.content.filter((block) => typeof block === "object" && block.type === "tool_use");
+      const toolResultBlocks = message.content.filter((block) => typeof block === "object" && block.type === "tool_result");
+      message.content = [
+        ...thinkingBlocks,
+        ...textBlocks,
+        ...toolUseBlocks,
+        ...toolResultBlocks
+      ];
+    }
+  }
+}
+function cleanMessageHistory(messages) {
+  const toolUseIds = new Set;
+  for (const message of messages) {
+    if (Array.isArray(message.content)) {
+      for (const block of message.content) {
+        if (typeof block === "object" && block.type === "tool_use" && block.id) {
+          toolUseIds.add(block.id);
+        }
+      }
+    }
+  }
+  for (const message of messages) {
+    if (Array.isArray(message.content)) {
+      let cleanedContent = message.content.filter((block) => {
+        if (typeof block === "object" && block.type === "tool_result" && block.tool_use_id) {
+          return toolUseIds.has(block.tool_use_id);
+        }
+        return true;
+      });
+      if (message.role === "assistant") {
+        const thinkingBlocks = cleanedContent.filter((block) => typeof block === "object" && (block.type === "thinking" || block.type === "redacted_thinking"));
+        const textBlocks = cleanedContent.filter((block) => typeof block === "object" && block.type === "text");
+        const toolUseBlocks = cleanedContent.filter((block) => typeof block === "object" && block.type === "tool_use");
+        const toolResultBlocks = cleanedContent.filter((block) => typeof block === "object" && block.type === "tool_result");
+        cleanedContent = [
+          ...thinkingBlocks,
+          ...textBlocks,
+          ...toolUseBlocks,
+          ...toolResultBlocks
+        ];
+      }
+      message.content = cleanedContent;
     }
   }
 }
@@ -14967,7 +15044,7 @@ ${capabilityDocs}`
     if (tokenEfficientToolsBeta) {
       betas.push("token-efficient-tools-2025-02-19");
     }
-    let imageTruncationThreshold = onlyNMostRecentImages || 0;
+    let imageTruncationThreshold = onlyNMostRecentImages || 20;
     const client = new Anthropic({ apiKey, maxRetries: 4 });
     const enablePromptCaching = true;
     if (enablePromptCaching) {
@@ -14976,6 +15053,8 @@ ${capabilityDocs}`
       onlyNMostRecentImages = 0;
       system.cache_control = { type: "ephemeral" };
     }
+    truncateMessageHistory(messages, 15);
+    cleanMessageHistory(messages);
     if (onlyNMostRecentImages) {
       maybeFilterToNMostRecentImages(messages, onlyNMostRecentImages, imageTruncationThreshold);
     }
@@ -15072,10 +15151,12 @@ async function computerUseLoop({
   const messages = await samplingLoop({
     model,
     systemPromptSuffix,
-    messages: [{
-      role: "user",
-      content: query
-    }],
+    messages: [
+      {
+        role: "user",
+        content: query
+      }
+    ],
     apiKey,
     maxTokens,
     toolVersion,
@@ -15128,7 +15209,11 @@ class SignalBus {
       case "cancel":
         this.state = "cancelling";
         this.abortController.abort();
-        this.emit("onCancel", { at: new Date, step: this.currentStep, reason });
+        this.emit("onCancel", {
+          at: new Date,
+          step: this.currentStep,
+          reason
+        });
         if (this.resumeResolve) {
           this.resumeResolve();
           this.resumeResolve = null;
@@ -15249,7 +15334,12 @@ class ComputerUseAgent {
     this.controller = new AgentControllerImpl(this.signalBus);
   }
   async execute(query, schema, options) {
-    const { systemPromptSuffix, thinkingBudget } = options ?? {};
+    const {
+      systemPromptSuffix,
+      thinkingBudget,
+      maxTokens,
+      onlyNMostRecentImages
+    } = options ?? {};
     let finalQuery = query;
     if (schema) {
       const jsonSchema = esm_default(schema);
@@ -15269,6 +15359,8 @@ Respond ONLY with the JSON object, no additional text.`;
       model: this.model,
       systemPromptSuffix,
       thinkingBudget,
+      maxTokens,
+      onlyNMostRecentImages,
       signalBus: this.signalBus,
       executionConfig: this.executionConfig,
       playwrightCapabilities: this.playwrightCapabilities,
