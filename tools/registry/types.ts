@@ -1,4 +1,4 @@
-import { z } from 'zod';
+import { z } from "zod";
 
 /**
  * Tool capability configuration
@@ -21,8 +21,6 @@ export interface ToolCapability {
   enabled?: boolean;
 }
 
-
-
 /**
  * Tool registry interface
  */
@@ -42,7 +40,11 @@ export interface ToolRegistry {
   /** Generate documentation for all tools */
   generateAllDocs(): string;
   /** Validate method arguments against capability schema */
-  validate(tool: string, method: string, args: unknown[]): { valid: boolean; errors?: string[] };
+  validate(
+    tool: string,
+    method: string,
+    args: unknown[],
+  ): { valid: boolean; errors?: string[] };
   /** Get all registered tool names */
   getToolNames(): string[];
 }

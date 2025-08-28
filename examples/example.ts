@@ -1,36 +1,39 @@
-import { chromium } from 'playwright';
-import { z } from 'zod';
-import { ComputerUseAgent } from '../index';
+import { chromium } from "playwright";
+import { z } from "zod";
+import { ComputerUseAgent } from "../index";
 
 async function textResponseExample(): Promise<void> {
   const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY;
   if (!ANTHROPIC_API_KEY) {
-    throw new Error('ANTHROPIC_API_KEY environment variable is required');
+    throw new Error("ANTHROPIC_API_KEY environment variable is required");
   }
-  
+
   const browser = await chromium.launch({ headless: false });
   const page = await browser.newPage();
-  
+
   try {
-    console.log('\n=== Text Response Examples ===');
+    console.log("\n=== Text Response Examples ===");
     const agent = new ComputerUseAgent({
       apiKey: ANTHROPIC_API_KEY,
       page,
     });
-    
+
     // Navigate to website using the agent
-    await agent.execute('Navigate to news.ycombinator.com');
-    
+    await agent.execute("Navigate to news.ycombinator.com");
+
     // Text response with action
-    const topStory = await agent.execute('Tell me the title of the top story on this page');
-    console.log('Top story:', topStory);
+    const topStory = await agent.execute(
+      "Tell me the title of the top story on this page",
+    );
+    console.log("Top story:", topStory);
 
     // Text response with multiple pieces of information
-    const summary = await agent.execute('Give me a brief summary of the top 3 stories');
-    console.log('Summary:', summary);
-    
+    const summary = await agent.execute(
+      "Give me a brief summary of the top 3 stories",
+    );
+    console.log("Summary:", summary);
   } catch (error) {
-    console.error('Error in text response example:', error);
+    console.error("Error in text response example:", error);
   } finally {
     await browser.close();
   }
@@ -39,22 +42,22 @@ async function textResponseExample(): Promise<void> {
 async function structuredResponseExample(): Promise<void> {
   const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY;
   if (!ANTHROPIC_API_KEY) {
-    throw new Error('ANTHROPIC_API_KEY environment variable is required');
+    throw new Error("ANTHROPIC_API_KEY environment variable is required");
   }
-  
+
   const browser = await chromium.launch({ headless: false });
   const page = await browser.newPage();
-  
+
   try {
-    console.log('\n=== Structured Response Examples ===');
+    console.log("\n=== Structured Response Examples ===");
     const agent = new ComputerUseAgent({
       apiKey: ANTHROPIC_API_KEY,
       page,
     });
-    
+
     // Navigate to website using the agent (will use existing page if already there)
-    await agent.execute('Go to https://news.ycombinator.com/');
-    
+    await agent.execute("Go to https://news.ycombinator.com/");
+
     // Define schema for a single story
     const HackerNewsStory = z.object({
       title: z.string(),
@@ -63,13 +66,13 @@ async function structuredResponseExample(): Promise<void> {
       comments: z.number(),
       url: z.string().optional(),
     });
-    
+
     // Get multiple stories with structured data
     const stories = await agent.execute(
-      'Get the top 5 stories with their titles, points, authors, and comment counts',
-      z.array(HackerNewsStory).max(5)
+      "Get the top 5 stories with their titles, points, authors, and comment counts",
+      z.array(HackerNewsStory).max(5),
     );
-    console.log('Structured stories:', JSON.stringify(stories, null, 2));
+    console.log("Structured stories:", JSON.stringify(stories, null, 2));
 
     // Define schema for page metadata
     const PageInfo = z.object({
@@ -80,13 +83,12 @@ async function structuredResponseExample(): Promise<void> {
 
     // Get page information with structured data
     const pageInfo = await agent.execute(
-      'Get information about this page including its title, total number of stories visible, and current page number',
-      PageInfo
+      "Get information about this page including its title, total number of stories visible, and current page number",
+      PageInfo,
     );
-    console.log('Page info:', JSON.stringify(pageInfo, null, 2));
-    
+    console.log("Page info:", JSON.stringify(pageInfo, null, 2));
   } catch (error) {
-    console.error('Error in structured response example:', error);
+    console.error("Error in structured response example:", error);
   } finally {
     await browser.close();
   }
@@ -94,12 +96,12 @@ async function structuredResponseExample(): Promise<void> {
 
 // Run examples
 async function runExamples(): Promise<void> {
-  console.log('Running Computer Use Agent Examples...');
-  
+  console.log("Running Computer Use Agent Examples...");
+
   await textResponseExample();
   await structuredResponseExample();
-  
-  console.log('\nAll examples completed!');
+
+  console.log("\nAll examples completed!");
 }
 
-runExamples().catch(console.error); 
+runExamples().catch(console.error);

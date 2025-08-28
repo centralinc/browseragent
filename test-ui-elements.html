@@ -1,295 +1,369 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Smart Scrolling Test Page</title>
     <style>
-        body {
-            font-family: Arial, sans-serif;
-            margin: 0;
-            padding: 20px;
-            line-height: 1.6;
-        }
-        
-        .section {
-            margin: 40px 0;
-            padding: 20px;
-            border: 2px solid #ddd;
-            border-radius: 8px;
-            background: #f9f9f9;
-        }
-        
-        .long-content {
-            height: 800px;
-            background: linear-gradient(to bottom, #e3f2fd, #bbdefb);
-            padding: 20px;
-            margin: 20px 0;
-        }
-        
-        /* State picker dropdown styles */
-        .state-picker {
-            position: relative;
-            display: inline-block;
-            margin: 20px 0;
-        }
-        
-        .state-dropdown {
-            width: 300px;
-            max-height: 200px;
-            overflow-y: auto;
-            border: 1px solid #ccc;
-            border-radius: 4px;
-            background: white;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-        }
-        
-        .state-option {
-            padding: 10px 15px;
-            cursor: pointer;
-            border-bottom: 1px solid #eee;
-        }
-        
-        .state-option:hover {
-            background-color: #f0f0f0;
-        }
-        
-        .state-option:last-child {
-            border-bottom: none;
-        }
-        
-        /* Scrollable content area */
-        .scrollable-content {
-            height: 300px;
-            overflow-y: auto;
-            border: 1px solid #ccc;
-            padding: 15px;
-            background: white;
-            margin: 20px 0;
-        }
-        
-        /* Long list */
-        .long-list {
-            height: 400px;
-            overflow-y: auto;
-            border: 1px solid #ccc;
-            background: white;
-        }
-        
-        .list-item {
-            padding: 12px 20px;
-            border-bottom: 1px solid #eee;
-            cursor: pointer;
-        }
-        
-        .list-item:hover {
-            background-color: #f5f5f5;
-        }
-        
-        /* Page content for testing large scrolls */
-        .page-section {
-            height: 100vh;
-            padding: 40px;
-            margin: 20px 0;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 24px;
-            font-weight: bold;
-        }
-        
-        .section-1 { background: #ffcdd2; }
-        .section-2 { background: #f8bbd9; }
-        .section-3 { background: #e1bee7; }
-        .section-4 { background: #d1c4e9; }
-        .section-5 { background: #c5cae9; }
-        .section-6 { background: #bbdefb; }
-        .section-7 { background: #b3e5fc; }
-        .section-8 { background: #b2ebf2; }
-        
-        .highlight {
-            background-color: yellow;
-            padding: 2px 4px;
-        }
-        
-        h1, h2 {
-            color: #333;
-        }
-        
-        .test-instructions {
-            background: #e8f5e8;
-            padding: 15px;
-            border-left: 5px solid #4caf50;
-            margin: 20px 0;
-        }
+      body {
+        font-family: Arial, sans-serif;
+        margin: 0;
+        padding: 20px;
+        line-height: 1.6;
+      }
+
+      .section {
+        margin: 40px 0;
+        padding: 20px;
+        border: 2px solid #ddd;
+        border-radius: 8px;
+        background: #f9f9f9;
+      }
+
+      .long-content {
+        height: 800px;
+        background: linear-gradient(to bottom, #e3f2fd, #bbdefb);
+        padding: 20px;
+        margin: 20px 0;
+      }
+
+      /* State picker dropdown styles */
+      .state-picker {
+        position: relative;
+        display: inline-block;
+        margin: 20px 0;
+      }
+
+      .state-dropdown {
+        width: 300px;
+        max-height: 200px;
+        overflow-y: auto;
+        border: 1px solid #ccc;
+        border-radius: 4px;
+        background: white;
+        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+      }
+
+      .state-option {
+        padding: 10px 15px;
+        cursor: pointer;
+        border-bottom: 1px solid #eee;
+      }
+
+      .state-option:hover {
+        background-color: #f0f0f0;
+      }
+
+      .state-option:last-child {
+        border-bottom: none;
+      }
+
+      /* Scrollable content area */
+      .scrollable-content {
+        height: 300px;
+        overflow-y: auto;
+        border: 1px solid #ccc;
+        padding: 15px;
+        background: white;
+        margin: 20px 0;
+      }
+
+      /* Long list */
+      .long-list {
+        height: 400px;
+        overflow-y: auto;
+        border: 1px solid #ccc;
+        background: white;
+      }
+
+      .list-item {
+        padding: 12px 20px;
+        border-bottom: 1px solid #eee;
+        cursor: pointer;
+      }
+
+      .list-item:hover {
+        background-color: #f5f5f5;
+      }
+
+      /* Page content for testing large scrolls */
+      .page-section {
+        height: 100vh;
+        padding: 40px;
+        margin: 20px 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 24px;
+        font-weight: bold;
+      }
+
+      .section-1 {
+        background: #ffcdd2;
+      }
+      .section-2 {
+        background: #f8bbd9;
+      }
+      .section-3 {
+        background: #e1bee7;
+      }
+      .section-4 {
+        background: #d1c4e9;
+      }
+      .section-5 {
+        background: #c5cae9;
+      }
+      .section-6 {
+        background: #bbdefb;
+      }
+      .section-7 {
+        background: #b3e5fc;
+      }
+      .section-8 {
+        background: #b2ebf2;
+      }
+
+      .highlight {
+        background-color: yellow;
+        padding: 2px 4px;
+      }
+
+      h1,
+      h2 {
+        color: #333;
+      }
+
+      .test-instructions {
+        background: #e8f5e8;
+        padding: 15px;
+        border-left: 5px solid #4caf50;
+        margin: 20px 0;
+      }
     </style>
-</head>
-<body>
+  </head>
+  <body>
     <h1>🧪 Smart Scrolling Test Page</h1>
-    
+
     <div class="test-instructions">
-        <h3>Test Instructions:</h3>
-        <ul>
-            <li><strong>Large Scrolls (80-90):</strong> Use for page navigation between sections</li>
-            <li><strong>Small Scrolls (5-15):</strong> Use for precise navigation in dropdowns/lists</li>
-            <li><strong>Default (no amount):</strong> Should use 90% viewport for efficient navigation</li>
-        </ul>
+      <h3>Test Instructions:</h3>
+      <ul>
+        <li>
+          <strong>Large Scrolls (80-90):</strong> Use for page navigation
+          between sections
+        </li>
+        <li>
+          <strong>Small Scrolls (5-15):</strong> Use for precise navigation in
+          dropdowns/lists
+        </li>
+        <li>
+          <strong>Default (no amount):</strong> Should use 90% viewport for
+          efficient navigation
+        </li>
+      </ul>
     </div>
 
     <!-- Page sections for testing large scrolls -->
     <div class="page-section section-1">
-        📍 Section 1: START HERE - Test large scrolls (80-90) to navigate between sections
+      📍 Section 1: START HERE - Test large scrolls (80-90) to navigate between
+      sections
     </div>
-    
+
     <div class="page-section section-2">
-        📍 Section 2: You should be able to reach this with 1-2 large scrolls
+      📍 Section 2: You should be able to reach this with 1-2 large scrolls
     </div>
-    
+
     <div class="page-section section-3">
-        📍 Section 3: Continue large scrolling to find the UI elements below
+      📍 Section 3: Continue large scrolling to find the UI elements below
     </div>
 
     <!-- UI Elements Section -->
     <div class="section">
-        <h2>🎯 UI Elements for Precise Scrolling Tests</h2>
-        
-        <h3>State Picker Dropdown (Test small scrolls 5-15)</h3>
-        <div class="state-picker">
-            <label for="state-select">Select a State:</label>
-            <div class="state-dropdown" id="state-dropdown">
-                <div class="state-option">Alabama</div>
-                <div class="state-option">Alaska</div>
-                <div class="state-option">Arizona</div>
-                <div class="state-option">Arkansas</div>
-                <div class="state-option">California</div>
-                <div class="state-option">Colorado</div>
-                <div class="state-option">Connecticut</div>
-                <div class="state-option">Delaware</div>
-                <div class="state-option">Florida</div>
-                <div class="state-option">Georgia</div>
-                <div class="state-option">Hawaii</div>
-                <div class="state-option">Idaho</div>
-                <div class="state-option">Illinois</div>
-                <div class="state-option">Indiana</div>
-                <div class="state-option">Iowa</div>
-                <div class="state-option">Kansas</div>
-                <div class="state-option">Kentucky</div>
-                <div class="state-option">Louisiana</div>
-                <div class="state-option">Maine</div>
-                <div class="state-option">Maryland</div>
-                <div class="state-option">Massachusetts</div>
-                <div class="state-option">Michigan</div>
-                <div class="state-option">Minnesota</div>
-                <div class="state-option">Mississippi</div>
-                <div class="state-option">Missouri</div>
-                <div class="state-option">Montana</div>
-                <div class="state-option">Nebraska</div>
-                <div class="state-option">Nevada</div>
-                <div class="state-option">New Hampshire</div>
-                <div class="state-option">New Jersey</div>
-                <div class="state-option">New Mexico</div>
-                <div class="state-option">New York</div>
-                <div class="state-option">North Carolina</div>
-                <div class="state-option">North Dakota</div>
-                <div class="state-option">Ohio</div>
-                <div class="state-option">Oklahoma</div>
-                <div class="state-option">Oregon</div>
-                <div class="state-option">Pennsylvania</div>
-                <div class="state-option">Rhode Island</div>
-                <div class="state-option">South Carolina</div>
-                <div class="state-option">South Dakota</div>
-                <div class="state-option">Tennessee</div>
-                <div class="state-option">Texas</div>
-                <div class="state-option">Utah</div>
-                <div class="state-option">Vermont</div>
-                <div class="state-option">Virginia</div>
-                <div class="state-option">Washington</div>
-                <div class="state-option">West Virginia</div>
-                <div class="state-option">Wisconsin</div>
-                <div class="state-option">Wyoming</div>
-                <div class="state-option highlight">🎯 TARGET: Find Wyoming with small scrolls!</div>
-            </div>
-        </div>
+      <h2>🎯 UI Elements for Precise Scrolling Tests</h2>
 
-        <h3>Long Product List (Test small scrolls 5-15)</h3>
-        <div class="long-list">
-            <div class="list-item">Product 1: Laptop</div>
-            <div class="list-item">Product 2: Desktop</div>
-            <div class="list-item">Product 3: Monitor</div>
-            <div class="list-item">Product 4: Keyboard</div>
-            <div class="list-item">Product 5: Mouse</div>
-            <div class="list-item">Product 6: Webcam</div>
-            <div class="list-item">Product 7: Speakers</div>
-            <div class="list-item">Product 8: Headphones</div>
-            <div class="list-item">Product 9: Tablet</div>
-            <div class="list-item">Product 10: Phone</div>
-            <div class="list-item">Product 11: Charger</div>
-            <div class="list-item">Product 12: Cable</div>
-            <div class="list-item">Product 13: USB Drive</div>
-            <div class="list-item">Product 14: External Hard Drive</div>
-            <div class="list-item">Product 15: Printer</div>
-            <div class="list-item">Product 16: Scanner</div>
-            <div class="list-item">Product 17: Router</div>
-            <div class="list-item">Product 18: Modem</div>
-            <div class="list-item">Product 19: Switch</div>
-            <div class="list-item">Product 20: Hub</div>
-            <div class="list-item">Product 21: Adapter</div>
-            <div class="list-item">Product 22: Converter</div>
-            <div class="list-item">Product 23: Docking Station</div>
-            <div class="list-item">Product 24: Stand</div>
-            <div class="list-item">Product 25: Mount</div>
-            <div class="list-item highlight">🎯 TARGET: Find Product 25 with small scrolls!</div>
+      <h3>State Picker Dropdown (Test small scrolls 5-15)</h3>
+      <div class="state-picker">
+        <label for="state-select">Select a State:</label>
+        <div class="state-dropdown" id="state-dropdown">
+          <div class="state-option">Alabama</div>
+          <div class="state-option">Alaska</div>
+          <div class="state-option">Arizona</div>
+          <div class="state-option">Arkansas</div>
+          <div class="state-option">California</div>
+          <div class="state-option">Colorado</div>
+          <div class="state-option">Connecticut</div>
+          <div class="state-option">Delaware</div>
+          <div class="state-option">Florida</div>
+          <div class="state-option">Georgia</div>
+          <div class="state-option">Hawaii</div>
+          <div class="state-option">Idaho</div>
+          <div class="state-option">Illinois</div>
+          <div class="state-option">Indiana</div>
+          <div class="state-option">Iowa</div>
+          <div class="state-option">Kansas</div>
+          <div class="state-option">Kentucky</div>
+          <div class="state-option">Louisiana</div>
+          <div class="state-option">Maine</div>
+          <div class="state-option">Maryland</div>
+          <div class="state-option">Massachusetts</div>
+          <div class="state-option">Michigan</div>
+          <div class="state-option">Minnesota</div>
+          <div class="state-option">Mississippi</div>
+          <div class="state-option">Missouri</div>
+          <div class="state-option">Montana</div>
+          <div class="state-option">Nebraska</div>
+          <div class="state-option">Nevada</div>
+          <div class="state-option">New Hampshire</div>
+          <div class="state-option">New Jersey</div>
+          <div class="state-option">New Mexico</div>
+          <div class="state-option">New York</div>
+          <div class="state-option">North Carolina</div>
+          <div class="state-option">North Dakota</div>
+          <div class="state-option">Ohio</div>
+          <div class="state-option">Oklahoma</div>
+          <div class="state-option">Oregon</div>
+          <div class="state-option">Pennsylvania</div>
+          <div class="state-option">Rhode Island</div>
+          <div class="state-option">South Carolina</div>
+          <div class="state-option">South Dakota</div>
+          <div class="state-option">Tennessee</div>
+          <div class="state-option">Texas</div>
+          <div class="state-option">Utah</div>
+          <div class="state-option">Vermont</div>
+          <div class="state-option">Virginia</div>
+          <div class="state-option">Washington</div>
+          <div class="state-option">West Virginia</div>
+          <div class="state-option">Wisconsin</div>
+          <div class="state-option">Wyoming</div>
+          <div class="state-option highlight">
+            🎯 TARGET: Find Wyoming with small scrolls!
+          </div>
         </div>
+      </div>
 
-        <h3>Scrollable Content Area (Test small scrolls 5-15)</h3>
-        <div class="scrollable-content">
-            <p>This is a scrollable content area. Use small scroll amounts (5-15) to navigate through this content precisely.</p>
-            <p>Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.</p>
-            <p>Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat.</p>
-            <p>Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur.</p>
-            <p>Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.</p>
-            <p>Sed ut perspiciatis unde omnis iste natus error sit voluptatem accusantium doloremque laudantium.</p>
-            <p>Totam rem aperiam, eaque ipsa quae ab illo inventore veritatis et quasi architecto beatae vitae dicta sunt.</p>
-            <p>Explicabo nemo enim ipsam voluptatem quia voluptas sit aspernatur aut odit aut fugit.</p>
-            <p>Sed quia consequuntur magni dolores eos qui ratione voluptatem sequi nesciunt.</p>
-            <p>Neque porro quisquam est, qui dolorem ipsum quia dolor sit amet, consectetur, adipisci velit.</p>
-            <p class="highlight">🎯 TARGET: This highlighted text should be reachable with small, precise scrolls!</p>
-            <p>Sed ut perspiciatis unde omnis iste natus error sit voluptatem accusantium doloremque laudantium.</p>
-            <p>At vero eos et accusamus et iusto odio dignissimos ducimus qui blanditiis praesentium voluptatum.</p>
+      <h3>Long Product List (Test small scrolls 5-15)</h3>
+      <div class="long-list">
+        <div class="list-item">Product 1: Laptop</div>
+        <div class="list-item">Product 2: Desktop</div>
+        <div class="list-item">Product 3: Monitor</div>
+        <div class="list-item">Product 4: Keyboard</div>
+        <div class="list-item">Product 5: Mouse</div>
+        <div class="list-item">Product 6: Webcam</div>
+        <div class="list-item">Product 7: Speakers</div>
+        <div class="list-item">Product 8: Headphones</div>
+        <div class="list-item">Product 9: Tablet</div>
+        <div class="list-item">Product 10: Phone</div>
+        <div class="list-item">Product 11: Charger</div>
+        <div class="list-item">Product 12: Cable</div>
+        <div class="list-item">Product 13: USB Drive</div>
+        <div class="list-item">Product 14: External Hard Drive</div>
+        <div class="list-item">Product 15: Printer</div>
+        <div class="list-item">Product 16: Scanner</div>
+        <div class="list-item">Product 17: Router</div>
+        <div class="list-item">Product 18: Modem</div>
+        <div class="list-item">Product 19: Switch</div>
+        <div class="list-item">Product 20: Hub</div>
+        <div class="list-item">Product 21: Adapter</div>
+        <div class="list-item">Product 22: Converter</div>
+        <div class="list-item">Product 23: Docking Station</div>
+        <div class="list-item">Product 24: Stand</div>
+        <div class="list-item">Product 25: Mount</div>
+        <div class="list-item highlight">
+          🎯 TARGET: Find Product 25 with small scrolls!
         </div>
+      </div>
+
+      <h3>Scrollable Content Area (Test small scrolls 5-15)</h3>
+      <div class="scrollable-content">
+        <p>
+          This is a scrollable content area. Use small scroll amounts (5-15) to
+          navigate through this content precisely.
+        </p>
+        <p>
+          Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do
+          eiusmod tempor incididunt ut labore et dolore magna aliqua.
+        </p>
+        <p>
+          Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris
+          nisi ut aliquip ex ea commodo consequat.
+        </p>
+        <p>
+          Duis aute irure dolor in reprehenderit in voluptate velit esse cillum
+          dolore eu fugiat nulla pariatur.
+        </p>
+        <p>
+          Excepteur sint occaecat cupidatat non proident, sunt in culpa qui
+          officia deserunt mollit anim id est laborum.
+        </p>
+        <p>
+          Sed ut perspiciatis unde omnis iste natus error sit voluptatem
+          accusantium doloremque laudantium.
+        </p>
+        <p>
+          Totam rem aperiam, eaque ipsa quae ab illo inventore veritatis et
+          quasi architecto beatae vitae dicta sunt.
+        </p>
+        <p>
+          Explicabo nemo enim ipsam voluptatem quia voluptas sit aspernatur aut
+          odit aut fugit.
+        </p>
+        <p>
+          Sed quia consequuntur magni dolores eos qui ratione voluptatem sequi
+          nesciunt.
+        </p>
+        <p>
+          Neque porro quisquam est, qui dolorem ipsum quia dolor sit amet,
+          consectetur, adipisci velit.
+        </p>
+        <p class="highlight">
+          🎯 TARGET: This highlighted text should be reachable with small,
+          precise scrolls!
+        </p>
+        <p>
+          Sed ut perspiciatis unde omnis iste natus error sit voluptatem
+          accusantium doloremque laudantium.
+        </p>
+        <p>
+          At vero eos et accusamus et iusto odio dignissimos ducimus qui
+          blanditiis praesentium voluptatum.
+        </p>
+      </div>
     </div>
 
     <!-- More page sections for continued large scroll testing -->
     <div class="page-section section-4">
-        📍 Section 4: Use large scrolls (80-90) to continue page navigation
+      📍 Section 4: Use large scrolls (80-90) to continue page navigation
     </div>
-    
+
     <div class="page-section section-5">
-        📍 Section 5: Testing that large scrolls work efficiently
+      📍 Section 5: Testing that large scrolls work efficiently
     </div>
-    
+
     <div class="page-section section-6">
-        📍 Section 6: Each large scroll should show ~90% new content
+      📍 Section 6: Each large scroll should show ~90% new content
     </div>
-    
+
     <div class="page-section section-7">
-        📍 Section 7: With ~10% overlap for context
+      📍 Section 7: With ~10% overlap for context
     </div>
-    
+
     <div class="page-section section-8">
-        📍 Section 8: END - You've reached the bottom with efficient scrolling!
+      📍 Section 8: END - You've reached the bottom with efficient scrolling!
     </div>
 
     <div class="section">
-        <h2>✅ Test Completion Checklist</h2>
-        <ul>
-            <li>✓ Large scrolls (80-90) efficiently navigate between page sections</li>
-            <li>✓ Small scrolls (5-15) precisely navigate within UI elements</li>
-            <li>✓ Found Wyoming in the state picker using small scrolls</li>
-            <li>✓ Found Product 25 in the product list using small scrolls</li>
-            <li>✓ Found highlighted text in scrollable content using small scrolls</li>
-            <li>✓ Default scrolling (no amount) uses 90% viewport efficiently</li>
-        </ul>
+      <h2>✅ Test Completion Checklist</h2>
+      <ul>
+        <li>
+          ✓ Large scrolls (80-90) efficiently navigate between page sections
+        </li>
+        <li>✓ Small scrolls (5-15) precisely navigate within UI elements</li>
+        <li>✓ Found Wyoming in the state picker using small scrolls</li>
+        <li>✓ Found Product 25 in the product list using small scrolls</li>
+        <li>
+          ✓ Found highlighted text in scrollable content using small scrolls
+        </li>
+        <li>✓ Default scrolling (no amount) uses 90% viewport efficiently</li>
+      </ul>
     </div>
-</body>
-</html> 
+  </body>
+</html>
