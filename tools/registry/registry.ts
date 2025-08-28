@@ -1,9 +1,16 @@
-import { z } from 'zod';
-import type { 
-  ToolCapability, 
-  ToolRegistry, 
-  ToolRegistryConfig
-} from './types';
+import { z } from "zod";
+import type { ToolCapability, ToolRegistry, ToolRegistryConfig } from "./types";
+
+// Type definitions for Zod schema introspection
+interface ZodObjectDef {
+  typeName: "ZodObject";
+  shape: Record<string, z.ZodTypeAny>;
+}
+
+interface ZodDef {
+  typeName?: string;
+  shape?: Record<string, z.ZodTypeAny>;
+}
 
 /**
  * Default implementation of the tool registry
@@ -26,11 +33,11 @@ export class DefaultToolRegistry implements ToolRegistry {
 
   register(capability: ToolCapability): void {
     const key = this.getCapabilityKey(capability.tool, capability.method);
-    
+
     if (this.capabilities.has(key)) {
       throw new Error(`Capability '${key}' is already registered`);
     }
-    
+
     // Apply configuration overrides
     if (this.config.overrides?.[key]) {
       capability = {
@@ -38,12 +45,12 @@ export class DefaultToolRegistry implements ToolRegistry {
         ...this.config.overrides[key],
       };
     }
-    
+
     // Apply filter if provided
     if (this.config.filter && !this.config.filter(capability)) {
       return;
     }
-    
+
     this.capabilities.set(key, capability);
   }
 
@@ -52,15 +59,14 @@ export class DefaultToolRegistry implements ToolRegistry {
   }
 
   getToolCapabilities(tool: string): ToolCapability[] {
-    return Array.from(this.capabilities.values())
-      .filter(cap => cap.tool === tool);
+    return Array.from(this.capabilities.values()).filter(
+      (cap) => cap.tool === tool,
+    );
   }
 
   getAll(): ToolCapability[] {
     return Array.from(this.capabilities.values());
   }
-
-
 
   isEnabled(tool: string, method: string): boolean {
     const capability = this.get(tool, method);
@@ -69,14 +75,21 @@ export class DefaultToolRegistry implements ToolRegistry {
 
   getToolNames(): string[] {
     const tools = new Set<string>();
-    this.capabilities.forEach(cap => tools.add(cap.tool));
+    this.capabilities.forEach((cap) => tools.add(cap.tool));
     return Array.from(tools);
   }
 
-  validate(tool: string, method: string, args: unknown[]): { valid: boolean; errors?: string[] } {
+  validate(
+    tool: string,
+    method: string,
+    args: unknown[],
+  ): { valid: boolean; errors?: string[] } {
     const capability = this.get(tool, method);
     if (!capability) {
-      return { valid: false, errors: [`Unknown capability: ${tool}:${method}`] };
+      return {
+        valid: false,
+        errors: [`Unknown capability: ${tool}:${method}`],
+      };
     }
 
     if (!this.config.validateInputs) {
@@ -87,14 +100,24 @@ export class DefaultToolRegistry implements ToolRegistry {
       // Validate arguments against capability schema
       if (capability.schema) {
         // If schema expects an object but we have an array, convert
-        if (args.length === 1 && typeof args[0] === 'object' && !Array.isArray(args[0])) {
+        if (
+          args.length === 1 &&
+          typeof args[0] === "object" &&
+          !Array.isArray(args[0])
+        ) {
           capability.schema.parse(args[0]);
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        } else if (capability.schema._def && (capability.schema._def as any).typeName === 'ZodObject' && args.length > 0) {
+           
+        } else if (
+          capability.schema._def &&
+          (capability.schema._def as ZodDef).typeName === "ZodObject" &&
+          args.length > 0
+        ) {
           // For methods expecting named parameters
           const obj = args.reduce((acc: Record<string, unknown>, val, idx) => {
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            const keys = Object.keys((capability.schema._def as any).shape || {});
+
+            const keys = Object.keys(
+              (capability.schema._def as ZodObjectDef).shape || {},
+            );
             const key = keys[idx];
             if (key) {
               acc[key] = val;
@@ -107,13 +130,13 @@ export class DefaultToolRegistry implements ToolRegistry {
           capability.schema.parse(args);
         }
       }
-      
+
       return { valid: true };
     } catch (error) {
       if (error instanceof z.ZodError) {
-        return { 
-          valid: false, 
-          errors: error.errors.map(e => `${e.path.join('.')}: ${e.message}`)
+        return {
+          valid: false,
+          errors: error.errors.map((e) => `${e.path.join(".")}: ${e.message}`),
         };
       }
       return { valid: false, errors: [String(error)] };
@@ -121,63 +144,67 @@ export class DefaultToolRegistry implements ToolRegistry {
   }
 
   generateToolDocs(tool: string): string {
-    const capabilities = this.getToolCapabilities(tool)
-      .filter(cap => cap.enabled !== false);
-    
+    const capabilities = this.getToolCapabilities(tool).filter(
+      (cap) => cap.enabled !== false,
+    );
+
     if (capabilities.length === 0) {
-      return '';
+      return "";
     }
 
     const sections: string[] = [
       `${tool.toUpperCase()} TOOL CAPABILITIES:`,
-      `* You have access to a '${tool}' tool that provides the following capabilities:`
+      `* You have access to a '${tool}' tool that provides the following capabilities:`,
     ];
 
     // Add brief overview
-    capabilities.forEach(cap => {
+    capabilities.forEach((cap) => {
       sections.push(`  - '${cap.method}': ${cap.description}`);
     });
-    sections.push('');
+    sections.push("");
 
     // Add detailed usage for each capability
-    capabilities.forEach(cap => {
+    capabilities.forEach((cap) => {
       sections.push(this.generateCapabilityDoc(cap));
-      sections.push('');
+      sections.push("");
     });
 
-    return sections.join('\n');
+    return sections.join("\n");
   }
 
   generateAllDocs(): string {
     const tools = this.getToolNames();
     if (tools.length === 0) {
-      return '';
+      return "";
     }
 
     const sections: string[] = [];
-    tools.forEach(tool => {
+    tools.forEach((tool) => {
       const toolDocs = this.generateToolDocs(tool);
       if (toolDocs) {
         sections.push(toolDocs);
-        sections.push(''); // Add spacing between tools
+        sections.push(""); // Add spacing between tools
       }
     });
 
-    return sections.join('\n').trim();
+    return sections.join("\n").trim();
   }
 
   private generateCapabilityDoc(capability: ToolCapability): string {
     const lines: string[] = [];
-    
+
     lines.push(`HOW TO USE ${capability.method.toUpperCase()}:`);
-    
+
     // Add usage instructions
-    const usageLines = capability.usage.split('\n').map(line => line.trim()).filter(Boolean);
+    const usageLines = capability.usage
+      .split("\n")
+      .map((line) => line.trim())
+      .filter(Boolean);
     usageLines.forEach((line, index) => {
       lines.push(`${index + 1}. ${line}`);
     });
-    
-    return lines.join('\n');
+
+    return lines.join("\n");
   }
 }
 

@@ -17,6 +17,7 @@ By participating in this project, you are expected to uphold our [Code of Conduc
 
 2. **Create a new branch**
    - Always branch from the up-to-date main branch
+
    ```bash
    git checkout main
    git pull upstream main

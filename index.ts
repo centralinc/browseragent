@@ -1,16 +1,21 @@
-export { ComputerUseAgent } from './agent';
-export type { BetaMessageParam, BetaTextBlock } from './types/beta';
-export type { ToolVersion } from './tools/collection';
-export { Action } from './tools/types/computer';
-export type { 
-  ToolResult, 
-  ExecutionConfig, 
-  TypingConfig, 
-  ScreenshotConfig, 
-  MouseConfig, 
-  ScrollingConfig
-} from './tools/types/base';
-export type { AgentController, AgentControllerEvents, ControlSignal, SignalEvent } from './agent';
+export { ComputerUseAgent } from "./agent";
+export type { BetaMessageParam, BetaTextBlock } from "./types/beta";
+export type { ToolVersion } from "./tools/collection";
+export { Action } from "./tools/types/computer";
+export type {
+  ToolResult,
+  ExecutionConfig,
+  TypingConfig,
+  ScreenshotConfig,
+  MouseConfig,
+  ScrollingConfig,
+} from "./tools/types/base";
+export type {
+  AgentController,
+  AgentControllerEvents,
+  ControlSignal,
+  SignalEvent,
+} from "./agent";
 
 // Export tool registry system
 export {
@@ -21,12 +26,12 @@ export {
   capabilitySchema,
   withCapabilities,
   registerPlaywrightCapabilities,
-  PLAYWRIGHT_CAPABILITIES
-} from './tools/registry';
+  PLAYWRIGHT_CAPABILITIES,
+} from "./tools/registry";
 export type {
   ToolCapability,
   ToolRegistry,
   ToolRegistryConfig,
   CapabilityDecoratorOptions,
-  RegistryAwareTool
-} from './tools/registry';
+  RegistryAwareTool,
+} from "./tools/registry";

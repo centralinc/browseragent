@@ -1,5 +1,5 @@
-export type ControlSignal = 'pause' | 'resume' | 'cancel';
-export type SignalEvent = 'onPause' | 'onResume' | 'onCancel' | 'onError';
+export type ControlSignal = "pause" | "resume" | "cancel";
+export type SignalEvent = "onPause" | "onResume" | "onCancel" | "onError";
 
 export interface SignalEventPayloadMap {
   onPause: { at: Date; step: number };
@@ -8,13 +8,14 @@ export interface SignalEventPayloadMap {
   onError: { at: Date; step: number; error: unknown };
 }
 
-export type SignalListener<E extends SignalEvent = SignalEvent> =
-  (payload: SignalEventPayloadMap[E]) => void | Promise<void>;
+export type SignalListener<E extends SignalEvent = SignalEvent> = (
+  payload: SignalEventPayloadMap[E],
+) => void | Promise<void>;
 
-type SignalState = 'running' | 'paused' | 'cancelling';
+type SignalState = "running" | "paused" | "cancelling";
 
 export class SignalBus {
-  private state: SignalState = 'running';
+  private state: SignalState = "running";
   private listeners: Map<SignalEvent, Set<SignalListener>> = new Map();
   private resumePromise: Promise<void> | null = null;
   private resumeResolve: (() => void) | null = null;
@@ -23,10 +24,10 @@ export class SignalBus {
 
   constructor() {
     // Initialize listener sets for each event type
-    this.listeners.set('onPause', new Set());
-    this.listeners.set('onResume', new Set());
-    this.listeners.set('onCancel', new Set());
-    this.listeners.set('onError', new Set());
+    this.listeners.set("onPause", new Set());
+    this.listeners.set("onResume", new Set());
+    this.listeners.set("onCancel", new Set());
+    this.listeners.set("onError", new Set());
   }
 
   /**
@@ -34,29 +35,33 @@ export class SignalBus {
    */
   send(signal: ControlSignal, reason?: string): void {
     switch (signal) {
-      case 'pause':
-        if (this.state === 'running') {
-          this.state = 'paused';
+      case "pause":
+        if (this.state === "running") {
+          this.state = "paused";
           // Don't emit onPause immediately - let the loop emit it when it actually pauses
         }
         break;
 
-      case 'resume':
-        if (this.state === 'paused') {
-          this.state = 'running';
+      case "resume":
+        if (this.state === "paused") {
+          this.state = "running";
           if (this.resumeResolve) {
             this.resumeResolve();
             this.resumeResolve = null;
             this.resumePromise = null;
           }
-          this.emit('onResume', { at: new Date(), step: this.currentStep });
+          this.emit("onResume", { at: new Date(), step: this.currentStep });
         }
         break;
 
-      case 'cancel':
-        this.state = 'cancelling';
+      case "cancel":
+        this.state = "cancelling";
         this.abortController.abort();
-        this.emit('onCancel', { at: new Date(), step: this.currentStep, reason });
+        this.emit("onCancel", {
+          at: new Date(),
+          step: this.currentStep,
+          reason,
+        });
         // Wake up any waiting resume promise
         if (this.resumeResolve) {
           this.resumeResolve();
@@ -88,21 +93,24 @@ export class SignalBus {
   /**
    * Emit a signal event to all listeners
    */
-  emit<E extends SignalEvent>(event: E, payload: SignalEventPayloadMap[E]): void {
+  emit<E extends SignalEvent>(
+    event: E,
+    payload: SignalEventPayloadMap[E],
+  ): void {
     const eventListeners = this.listeners.get(event);
     if (eventListeners) {
       // Execute all listeners (fire and forget for async ones)
       Promise.allSettled(
-        Array.from(eventListeners).map(listener => {
+        Array.from(eventListeners).map((listener) => {
           try {
             const result = listener(payload);
             return result instanceof Promise ? result : Promise.resolve();
           } catch (error) {
             return Promise.reject(error);
           }
-        })
-      ).catch(errors => {
-        console.error('Error in signal event listeners:', errors);
+        }),
+      ).catch((errors) => {
+        console.error("Error in signal event listeners:", errors);
       });
     }
   }
@@ -118,15 +126,15 @@ export class SignalBus {
    * Wait until resumed (used by the loop when paused)
    */
   async waitUntilResumed(): Promise<void> {
-    if (this.state !== 'paused') {
+    if (this.state !== "paused") {
       return;
     }
 
     // Emit onPause when we actually pause
-    this.emit('onPause', { at: new Date(), step: this.currentStep });
+    this.emit("onPause", { at: new Date(), step: this.currentStep });
 
     if (!this.resumePromise) {
-      this.resumePromise = new Promise<void>(resolve => {
+      this.resumePromise = new Promise<void>((resolve) => {
         this.resumeResolve = resolve;
       });
     }
@@ -152,13 +160,13 @@ export class SignalBus {
    * Check if cancellation was requested
    */
   isCancelling(): boolean {
-    return this.state === 'cancelling';
+    return this.state === "cancelling";
   }
 
   /**
    * Emit an error event
    */
   emitError(error: unknown): void {
-    this.emit('onError', { at: new Date(), step: this.currentStep, error });
+    this.emit("onError", { at: new Date(), step: this.currentStep, error });
   }
-} 
+}

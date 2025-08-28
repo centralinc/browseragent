@@ -4,16 +4,16 @@ on:
   workflow_dispatch:
     inputs:
       version_type:
-        description: 'Version bump type'
+        description: "Version bump type"
         required: true
-        default: 'patch'
+        default: "patch"
         type: choice
         options:
           - patch
           - minor
           - major
       prerelease:
-        description: 'Create as prerelease'
+        description: "Create as prerelease"
         required: false
         default: false
         type: boolean
@@ -24,7 +24,7 @@ jobs:
     permissions:
       contents: write
       packages: write
-    
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -69,13 +69,13 @@ jobs:
         run: |
           # Install semver for version bumping
           npm install -g semver
-          
+
           CURRENT_VERSION="${{ steps.current_version.outputs.current }}"
           NEW_VERSION=$(semver -i ${{ github.event.inputs.version_type }} $CURRENT_VERSION)
-          
+
           echo "new_version=$NEW_VERSION" >> $GITHUB_OUTPUT
           echo "tag=v$NEW_VERSION" >> $GITHUB_OUTPUT
-          
+
           # Update package.json
           npm version $NEW_VERSION --no-git-tag-version
 
@@ -96,16 +96,16 @@ jobs:
         run: |
           # Get commits since last tag
           LAST_TAG=$(git describe --tags --abbrev=0 HEAD^ 2>/dev/null || echo "")
-          
+
           if [ -z "$LAST_TAG" ]; then
             COMMITS=$(git log --pretty=format:"- %s (%h)" --no-merges)
           else
             COMMITS=$(git log ${LAST_TAG}..HEAD --pretty=format:"- %s (%h)" --no-merges)
           fi
-          
+
           # Create changelog
           CHANGELOG="## What's Changed"$'\n\n'"$COMMITS"
-          
+
           # Handle multiline output for GitHub Actions
           {
             echo 'changelog<<EOF'
@@ -137,11 +137,11 @@ jobs:
           name: Release ${{ steps.version.outputs.tag }}
           body: |
             # Release ${{ steps.version.outputs.tag }}
-            
+
             ${{ steps.changelog.outputs.changelog }}
-            
+
             ## Installation
-            
+
             ### NPM/Yarn/Bun
             ```bash
             npm install @onkernel/cu-playwright-ts@${{ steps.version.outputs.new_version }}
@@ -150,7 +150,7 @@ jobs:
             # or  
             bun add @onkernel/cu-playwright-ts@${{ steps.version.outputs.new_version }}
             ```
-            
+
             ### GitHub Dependency
             ```json
             {
@@ -163,4 +163,4 @@ jobs:
           prerelease: ${{ github.event.inputs.prerelease }}
           files: |
             dist.zip
-            package.json 
+            package.json

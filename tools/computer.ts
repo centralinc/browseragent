@@ -1,25 +1,25 @@
-import type { Page } from 'playwright';
-import { Action } from './types/computer';
-import type { ActionParams } from './types/computer';
-import { KeyboardUtils } from './utils/keyboard';
-import { ActionValidator } from './utils/validator';
-import { 
-  ToolError, 
-  type ToolResult, 
-  type ComputerUseTool, 
-  type ComputerToolDef, 
+import type { Page } from "playwright";
+import { Action } from "./types/computer";
+import type { ActionParams } from "./types/computer";
+import { KeyboardUtils } from "./utils/keyboard";
+import { ActionValidator } from "./utils/validator";
+import {
+  ToolError,
+  type ToolResult,
+  type ComputerUseTool,
+  type ComputerToolDef,
   type ExecutionConfig,
   DEFAULT_EXECUTION_CONFIG,
   type TypingConfig,
   type ScreenshotConfig,
   type MouseConfig,
-  type ScrollingConfig
-} from './types/base';
+  type ScrollingConfig,
+} from "./types/base";
 
 export class ComputerTool implements ComputerUseTool {
-  name: 'computer' = 'computer';
+  name: "computer" = "computer";
   protected page: Page;
-  protected version: '20241022' | '20250124';
+  protected version: "20241022" | "20250124";
   protected config: ExecutionConfig;
 
   private readonly mouseActions = new Set([
@@ -50,36 +50,37 @@ export class ComputerTool implements ComputerUseTool {
 
   constructor(
     page: Page,
-    version: '20241022' | '20250124' = '20250124',
+    version: "20241022" | "20250124" = "20250124",
     config?: ExecutionConfig,
   ) {
     this.page = page;
     this.version = version;
-    
+
     // Deep merge each config section to preserve defaults while allowing overrides
     this.config = {
       typing: {
         ...DEFAULT_EXECUTION_CONFIG.typing!,
-        ...(config?.typing || {})
+        ...(config?.typing || {}),
       } as Required<TypingConfig>,
       screenshot: {
         ...DEFAULT_EXECUTION_CONFIG.screenshot!,
-        ...(config?.screenshot || {})
+        ...(config?.screenshot || {}),
       } as Required<ScreenshotConfig>,
       mouse: {
         ...DEFAULT_EXECUTION_CONFIG.mouse!,
-        ...(config?.mouse || {})
+        ...(config?.mouse || {}),
       } as Required<MouseConfig>,
       scrolling: {
         ...DEFAULT_EXECUTION_CONFIG.scrolling!,
-        ...(config?.scrolling || {})
-      } as Required<ScrollingConfig>
+        ...(config?.scrolling || {}),
+      } as Required<ScrollingConfig>,
     };
-    
   }
 
-  get apiType(): 'computer_20241022' | 'computer_20250124' {
-    return this.version === '20241022' ? 'computer_20241022' : 'computer_20250124';
+  get apiType(): "computer_20241022" | "computer_20250124" {
+    return this.version === "20241022"
+      ? "computer_20241022"
+      : "computer_20250124";
   }
 
   toParams(): ComputerToolDef {
@@ -93,7 +94,7 @@ export class ComputerTool implements ComputerUseTool {
     return params as ComputerToolDef;
   }
 
-  private getMouseButton(action: Action): 'left' | 'right' | 'middle' {
+  private getMouseButton(action: Action): "left" | "right" | "middle" {
     switch (action) {
       case Action.LEFT_CLICK:
       case Action.DOUBLE_CLICK:
@@ -101,17 +102,20 @@ export class ComputerTool implements ComputerUseTool {
       case Action.LEFT_CLICK_DRAG:
       case Action.LEFT_MOUSE_DOWN:
       case Action.LEFT_MOUSE_UP:
-        return 'left';
+        return "left";
       case Action.RIGHT_CLICK:
-        return 'right';
+        return "right";
       case Action.MIDDLE_CLICK:
-        return 'middle';
+        return "middle";
       default:
         throw new ToolError(`Invalid mouse action: ${action}`);
     }
   }
 
-  private async handleMouseAction(action: Action, coordinate: [number, number]): Promise<ToolResult> {
+  private async handleMouseAction(
+    action: Action,
+    coordinate: [number, number],
+  ): Promise<ToolResult> {
     const [x, y] = ActionValidator.validateAndGetCoordinates(coordinate);
     await this.page.mouse.move(x, y);
     await this.page.waitForTimeout(20);
@@ -135,11 +139,15 @@ export class ComputerTool implements ComputerUseTool {
     return await this.screenshot();
   }
 
-  private async handleKeyboardAction(action: Action, text: string, duration?: number): Promise<ToolResult> {
+  private async handleKeyboardAction(
+    action: Action,
+    text: string,
+    duration?: number,
+  ): Promise<ToolResult> {
     if (action === Action.HOLD_KEY) {
       const key = KeyboardUtils.getPlaywrightKey(text);
       await this.page.keyboard.down(key);
-      await new Promise(resolve => setTimeout(resolve, duration! * 1000));
+      await new Promise((resolve) => setTimeout(resolve, duration! * 1000));
       await this.page.keyboard.up(key);
     } else if (action === Action.KEY) {
       const keys = KeyboardUtils.parseKeyCombination(text);
@@ -152,13 +160,13 @@ export class ComputerTool implements ComputerUseTool {
     } else {
       // Handle configurable typing behavior
       const typingConfig = this.config.typing!;
-      
-      if (typingConfig.mode === 'fill') {
+
+      if (typingConfig.mode === "fill") {
         // Use locator.fill() for maximum performance - bypasses keyboard events entirely
         // This directly sets the input value without simulating keystrokes
         try {
-          const focusedElement = await this.page.locator(':focus').first();
-          if (await focusedElement.count() > 0) {
+          const focusedElement = await this.page.locator(":focus").first();
+          if ((await focusedElement.count()) > 0) {
             await focusedElement.fill(text);
           } else {
             // Fallback to keyboard.type if no focused element
@@ -170,7 +178,9 @@ export class ComputerTool implements ComputerUseTool {
         }
       } else {
         // Type character by character with configurable delay
-        await this.page.keyboard.type(text, { delay: typingConfig.characterDelay || 12 });
+        await this.page.keyboard.type(text, {
+          delay: typingConfig.characterDelay || 12,
+        });
       }
     }
 
@@ -182,17 +192,19 @@ export class ComputerTool implements ComputerUseTool {
 
   async screenshot(): Promise<ToolResult> {
     try {
-      console.log('Starting screenshot...');
+      console.log("Starting screenshot...");
       const screenshotDelay = this.config.screenshot?.delay || 0.3;
-      await new Promise(resolve => setTimeout(resolve, screenshotDelay * 1000));
+      await new Promise((resolve) =>
+        setTimeout(resolve, screenshotDelay * 1000),
+      );
       const screenshot = await this.page.screenshot({
-        type: 'png',
+        type: "png",
         fullPage: false, // viewport only for speed
       });
-      console.log('Screenshot taken, size:', screenshot.length, 'bytes');
+      console.log("Screenshot taken, size:", screenshot.length, "bytes");
 
       return {
-        base64Image: screenshot.toString('base64'),
+        base64Image: screenshot.toString("base64"),
       };
     } catch (error) {
       throw new ToolError(`Failed to take screenshot: ${error}`);
@@ -200,18 +212,22 @@ export class ComputerTool implements ComputerUseTool {
   }
 
   async call(params: ActionParams): Promise<ToolResult> {
-    const { 
-      action, 
-      text, 
-      coordinate, 
+    const {
+      action,
+      text,
+      coordinate,
       scrollDirection: scrollDirectionParam,
       scroll_amount,
       scrollAmount,
-      duration, 
-      ...kwargs 
+      duration,
+      ...kwargs
     } = params;
 
-    ActionValidator.validateActionParams(params, this.mouseActions, this.keyboardActions);
+    ActionValidator.validateActionParams(
+      params,
+      this.mouseActions,
+      this.keyboardActions,
+    );
 
     if (action === Action.SCREENSHOT) {
       return await this.screenshot();
@@ -224,27 +240,34 @@ export class ComputerTool implements ComputerUseTool {
         const rect = range?.getBoundingClientRect();
         return rect ? { x: rect.x, y: rect.y } : null;
       });
-      
+
       if (!position) {
-        throw new ToolError('Failed to get cursor position');
+        throw new ToolError("Failed to get cursor position");
       }
-      
+
       return { output: `X=${position.x},Y=${position.y}` };
     }
 
     if (action === Action.SCROLL) {
-      if (this.version !== '20250124') {
+      if (this.version !== "20250124") {
         throw new ToolError(`${action} is only available in version 20250124`);
       }
 
       const scrollDirection = scrollDirectionParam || kwargs.scroll_direction;
       const scrollAmountValue = scrollAmount || scroll_amount;
 
-      if (!scrollDirection || !['up', 'down', 'left', 'right'].includes(scrollDirection as string)) {
-        throw new ToolError(`Scroll direction "${scrollDirection}" must be 'up', 'down', 'left', or 'right'`);
+      if (
+        !scrollDirection ||
+        !["up", "down", "left", "right"].includes(scrollDirection as string)
+      ) {
+        throw new ToolError(
+          `Scroll direction "${scrollDirection}" must be 'up', 'down', 'left', or 'right'`,
+        );
       }
-      if (typeof scrollAmountValue !== 'number' || scrollAmountValue < 0) {
-        throw new ToolError(`Scroll amount "${scrollAmountValue}" must be a non-negative number`);
+      if (typeof scrollAmountValue !== "number" || scrollAmountValue < 0) {
+        throw new ToolError(
+          `Scroll amount "${scrollAmountValue}" must be a non-negative number`,
+        );
       }
 
       if (coordinate) {
@@ -254,17 +277,17 @@ export class ComputerTool implements ComputerUseTool {
       }
 
       const pageDimensions = await this.page.evaluate(() => {
-	      return { h: window.innerHeight, w: window.innerWidth };
+        return { h: window.innerHeight, w: window.innerWidth };
       });
-      
+
       let scrollFactor = 0.9; // Default to 90% of viewport for efficient navigation
-      
+
       if (scrollAmountValue !== undefined) {
         // Convert LLM scroll amount (1-100) to viewport percentage
         // Small amounts (1-20) = precise scrolling for UI elements
         // Large amounts (80-90) = efficient page navigation
         scrollFactor = Math.min(Math.max(scrollAmountValue / 100, 0.05), 1.0);
-        
+
         // For very small amounts (<=20), use more precise scrolling
         if (scrollAmountValue <= 20) {
           scrollFactor = scrollAmountValue / 100; // 1-20% of viewport
@@ -278,24 +301,30 @@ export class ComputerTool implements ComputerUseTool {
           scrollFactor = scrollAmountValue / 100;
         }
       }
-      
-      if (scrollDirection === 'down' || scrollDirection === 'up') {
+
+      if (scrollDirection === "down" || scrollDirection === "up") {
         const amount = pageDimensions.h * scrollFactor;
-        await this.page.mouse.wheel(0, scrollDirection === 'down' ? amount : -amount);
+        await this.page.mouse.wheel(
+          0,
+          scrollDirection === "down" ? amount : -amount,
+        );
       } else {
         const amount = pageDimensions.w * scrollFactor;
-        await this.page.mouse.wheel(scrollDirection === 'right' ? amount : -amount, 0);
+        await this.page.mouse.wheel(
+          scrollDirection === "right" ? amount : -amount,
+          0,
+        );
       }
-      
+
       await this.page.waitForTimeout(100);
       return await this.screenshot();
     }
 
     if (action === Action.WAIT) {
-      if (this.version !== '20250124') {
+      if (this.version !== "20250124") {
         throw new ToolError(`${action} is only available in version 20250124`);
       }
-      await new Promise(resolve => setTimeout(resolve, duration! * 1000));
+      await new Promise((resolve) => setTimeout(resolve, duration! * 1000));
       return await this.screenshot();
     }
 
@@ -320,12 +349,12 @@ export class ComputerTool implements ComputerUseTool {
 // For backward compatibility
 export class ComputerTool20241022 extends ComputerTool {
   constructor(page: Page, config?: ExecutionConfig) {
-    super(page, '20241022', config);
+    super(page, "20241022", config);
   }
 }
 
 export class ComputerTool20250124 extends ComputerTool {
   constructor(page: Page, config?: ExecutionConfig) {
-    super(page, '20250124', config);
+    super(page, "20250124", config);
   }
 }

@@ -1,16 +1,28 @@
-import { Anthropic } from '@anthropic-ai/sdk';
-import { DateTime } from 'luxon';
-import type { Page } from 'playwright';
-import type { BetaMessageParam, BetaTextBlock } from './types/beta';
-import { ToolCollection, DEFAULT_TOOL_VERSION, TOOL_GROUPS_BY_VERSION, type ToolVersion } from './tools/collection';
-import { responseToParams, maybeFilterToNMostRecentImages, injectPromptCaching, PROMPT_CACHING_BETA_FLAG } from './utils/message-processing';
-import { makeApiToolResult } from './utils/tool-results';
-import { ComputerTool20241022, ComputerTool20250124 } from './tools/computer';
-import { PlaywrightTool } from './tools/playwright';
-import { Action } from './tools/types/computer';
-import type { ExecutionConfig } from './tools/types/base';
-import type { PlaywrightCapabilityDef } from './tools/playwright-capabilities';
-import type { ComputerUseTool } from './tools/types/base';
+import { Anthropic } from "@anthropic-ai/sdk";
+import { DateTime } from "luxon";
+import type { Page } from "playwright";
+import type { BetaMessageParam, BetaTextBlock } from "./types/beta";
+import {
+  ToolCollection,
+  DEFAULT_TOOL_VERSION,
+  TOOL_GROUPS_BY_VERSION,
+  type ToolVersion,
+} from "./tools/collection";
+import {
+  responseToParams,
+  maybeFilterToNMostRecentImages,
+  injectPromptCaching,
+  truncateMessageHistory,
+  cleanMessageHistory,
+  PROMPT_CACHING_BETA_FLAG,
+} from "./utils/message-processing";
+import { makeApiToolResult } from "./utils/tool-results";
+import { ComputerTool20241022, ComputerTool20250124 } from "./tools/computer";
+import { PlaywrightTool } from "./tools/playwright";
+import { Action } from "./tools/types/computer";
+import type { ExecutionConfig } from "./tools/types/base";
+import type { PlaywrightCapabilityDef } from "./tools/playwright-capabilities";
+import type { ComputerUseTool } from "./tools/types/base";
 
 // System prompt optimized for the environment
 const SYSTEM_PROMPT = `<SYSTEM_CAPABILITY>
@@ -23,7 +35,7 @@ const SYSTEM_PROMPT = `<SYSTEM_CAPABILITY>
 * For efficient page navigation, use LARGE scroll amounts (80-90) to quickly move through content.
 * Only use small scroll amounts (5-15) when scrolling within specific UI elements like dropdowns or small lists.
 * Page-level scrolling with scroll_amount 80-90 shows mostly new content while keeping some overlap for context.
-* The current date is ${DateTime.now().toFormat('EEEE, MMMM d, yyyy')}
+* The current date is ${DateTime.now().toFormat("EEEE, MMMM d, yyyy")}
 </SYSTEM_CAPABILITY>
 
 <IMPORTANT>
@@ -34,7 +46,7 @@ const SYSTEM_PROMPT = `<SYSTEM_CAPABILITY>
 
 // Add new type definitions
 interface ThinkingConfig {
-  type: 'enabled';
+  type: "enabled";
   budget_tokens: number;
 }
 
@@ -74,34 +86,45 @@ export async function samplingLoop({
   thinkingBudget?: number;
   tokenEfficientToolsBeta?: boolean;
   playwrightPage: Page;
-  signalBus?: import('./signals/bus').SignalBus;
+  signalBus?: import("./signals/bus").SignalBus;
   executionConfig?: ExecutionConfig;
   playwrightCapabilities?: PlaywrightCapabilityDef[];
   tools?: ComputerUseTool[];
 }): Promise<BetaMessageParam[]> {
   const selectedVersion = toolVersion || DEFAULT_TOOL_VERSION;
   const toolGroup = TOOL_GROUPS_BY_VERSION[selectedVersion];
-  
+
   // Create computer tools
-  const computerTools = toolGroup.tools.map((Tool: typeof ComputerTool20241022 | typeof ComputerTool20250124) => new Tool(playwrightPage, executionConfig));
-  
+  const computerTools = toolGroup.tools.map(
+    (Tool: typeof ComputerTool20241022 | typeof ComputerTool20250124) =>
+      new Tool(playwrightPage, executionConfig),
+  );
+
   // Create playwright tool with instance-specific capabilities
-  const playwrightTool = new PlaywrightTool(playwrightPage, playwrightCapabilities);
-  
+  const playwrightTool = new PlaywrightTool(
+    playwrightPage,
+    playwrightCapabilities,
+  );
+
   // Combine all tools (computer tools + playwright tool + additional tools)
-  const toolCollection = new ToolCollection(...computerTools, playwrightTool, ...tools);
+  const toolCollection = new ToolCollection(
+    ...computerTools,
+    playwrightTool,
+    ...tools,
+  );
 
   // Provide Page access to browser-aware tools
   toolCollection.setPage(playwrightPage);
 
   // Generate system prompt with instance-specific capabilities
-  const capabilityDocs = playwrightCapabilities.length > 0
-    ? playwrightTool.getCapabilityDocs()
-    : PlaywrightTool.getCapabilityDocs();
+  const capabilityDocs =
+    playwrightCapabilities.length > 0
+      ? playwrightTool.getCapabilityDocs()
+      : PlaywrightTool.getCapabilityDocs();
 
   const system: BetaTextBlock = {
-    type: 'text',
-    text: `${SYSTEM_PROMPT}${systemPromptSuffix ? ' ' + systemPromptSuffix : ''}
+    type: "text",
+    text: `${SYSTEM_PROMPT}${systemPromptSuffix ? " " + systemPromptSuffix : ""}
 
 ${capabilityDocs}`,
   };
@@ -112,50 +135,57 @@ ${capabilityDocs}`,
     // Check for pause/cancel signals before each step
     if (signalBus) {
       signalBus.setStep(stepIndex);
-      
+
       if (signalBus.isCancelling()) {
-        console.log('Agent execution was cancelled');
+        console.log("Agent execution was cancelled");
         break;
       }
-      
-      if (signalBus.getState() === 'paused') {
+
+      if (signalBus.getState() === "paused") {
         await signalBus.waitUntilResumed();
         // Check again after resume in case we were cancelled during pause
         if (signalBus.isCancelling()) {
-          console.log('Agent execution was cancelled during pause');
+          console.log("Agent execution was cancelled during pause");
           break;
         }
       }
     }
     const betas: string[] = toolGroup.beta_flag ? [toolGroup.beta_flag] : [];
-    
+
     if (tokenEfficientToolsBeta) {
-      betas.push('token-efficient-tools-2025-02-19');
+      betas.push("token-efficient-tools-2025-02-19");
     }
 
-    let imageTruncationThreshold = onlyNMostRecentImages || 0;
+    // More aggressive image filtering for long-running tasks
+    let imageTruncationThreshold = onlyNMostRecentImages || 20; // Default to keeping only 20 most recent images
 
     const client = new Anthropic({ apiKey, maxRetries: 4 });
     const enablePromptCaching = true;
-    
+
     if (enablePromptCaching) {
       betas.push(PROMPT_CACHING_BETA_FLAG);
       injectPromptCaching(messages);
       onlyNMostRecentImages = 0;
-      (system as BetaTextBlock).cache_control = { type: 'ephemeral' };
+      (system as BetaTextBlock).cache_control = { type: "ephemeral" };
     }
+
+    // Truncate message history to prevent context overflow in long-running tasks
+    truncateMessageHistory(messages, 15); // Keep only 15 most recent messages
+
+    // Clean message history to ensure tool_use and tool_result blocks are properly paired
+    cleanMessageHistory(messages);
 
     if (onlyNMostRecentImages) {
       maybeFilterToNMostRecentImages(
         messages,
         onlyNMostRecentImages,
-        imageTruncationThreshold
+        imageTruncationThreshold,
       );
     }
 
     const extraBody: ExtraBodyConfig = {};
     if (thinkingBudget) {
-      extraBody.thinking = { type: 'enabled', budget_tokens: thinkingBudget };
+      extraBody.thinking = { type: "enabled", budget_tokens: thinkingBudget };
     }
 
     const toolParams = toolCollection.toParams();
@@ -171,32 +201,32 @@ ${capabilityDocs}`,
     });
 
     const responseParams = responseToParams(response);
-    
-    const loggableContent = responseParams.map(block => {
-      if (block.type === 'tool_use') {
+
+    const loggableContent = responseParams.map((block) => {
+      if (block.type === "tool_use") {
         // Deep log the full input including arrays
         console.log(`\n=== TOOL USE: ${block.name} ===`);
-        console.log('Full input:', JSON.stringify(block.input, null, 2));
+        console.log("Full input:", JSON.stringify(block.input, null, 2));
         return {
-          type: 'tool_use',
+          type: "tool_use",
           name: block.name,
-          input: block.input
+          input: block.input,
         };
       }
       return block;
     });
-    console.log('=== LLM RESPONSE ===');
-    console.log('Stop reason:', response.stop_reason);
+    console.log("=== LLM RESPONSE ===");
+    console.log("Stop reason:", response.stop_reason);
     console.log(loggableContent);
-    console.log("===")
-    
+    console.log("===");
+
     messages.push({
-      role: 'assistant',
+      role: "assistant",
       content: responseParams,
     });
 
-    if (response.stop_reason === 'end_turn') {
-      console.log('LLM has completed its task, ending loop');
+    if (response.stop_reason === "end_turn") {
+      console.log("LLM has completed its task, ending loop");
       return messages;
     }
 
@@ -204,39 +234,47 @@ ${capabilityDocs}`,
 
     const toolResultContent = [];
     let hasToolUse = false;
-    
+
     for (const contentBlock of responseParams) {
-      if (contentBlock.type === 'tool_use' && contentBlock.name && contentBlock.input && typeof contentBlock.input === 'object') {
+      if (
+        contentBlock.type === "tool_use" &&
+        contentBlock.name &&
+        contentBlock.input &&
+        typeof contentBlock.input === "object"
+      ) {
         const input = contentBlock.input as ToolUseInput;
         hasToolUse = true;
-        
+
         try {
-          const result = await toolCollection.run(
-            contentBlock.name,
-            input
-          );
+          const result = await toolCollection.run(contentBlock.name, input);
 
           const toolResult = makeApiToolResult(result, contentBlock.id!);
           toolResultContent.push(toolResult);
         } catch (error) {
-            console.error(error);
-            // Emit error signal if signalBus is available
-            if (signalBus) {
-              signalBus.emitError(error);
-            }
-            throw error;
+          console.error(error);
+          // Emit error signal if signalBus is available
+          if (signalBus) {
+            signalBus.emitError(error);
+          }
+          throw error;
         }
       }
     }
 
-    if (toolResultContent.length === 0 && !hasToolUse && response.stop_reason !== 'tool_use') {
-      console.log('No tool use or results, and not waiting for tool use, ending loop');
+    if (
+      toolResultContent.length === 0 &&
+      !hasToolUse &&
+      response.stop_reason !== "tool_use"
+    ) {
+      console.log(
+        "No tool use or results, and not waiting for tool use, ending loop",
+      );
       return messages;
     }
 
     if (toolResultContent.length > 0) {
       messages.push({
-        role: 'user',
+        role: "user",
         content: toolResultContent,
       });
     }
@@ -248,10 +286,10 @@ ${capabilityDocs}`,
 
 /**
  * Simplified computer use loop for executing tasks with Claude
- * 
+ *
  * This function provides a higher-level interface to the sampling loop,
  * accepting a simple query string instead of message arrays.
- * 
+ *
  * @param options - Configuration options
  * @param options.query - The task description for Claude to execute
  * @param options.apiKey - Anthropic API key for authentication
@@ -263,9 +301,9 @@ ${capabilityDocs}`,
  * @param options.thinkingBudget - Token budget for Claude's reasoning (default: 1024)
  * @param options.tokenEfficientToolsBeta - Enable token-efficient tools beta
  * @param options.onlyNMostRecentImages - Limit number of recent images to include
- * 
+ *
  * @returns Promise resolving to array of conversation messages
- * 
+ *
  * @see https://docs.anthropic.com/en/docs/agents-and-tools/tool-use/computer-use-tool
  * @see https://docs.anthropic.com/en/docs/build-with-claude/extended-thinking
  */
@@ -273,7 +311,7 @@ export async function computerUseLoop({
   query,
   apiKey,
   playwrightPage,
-  model = 'claude-sonnet-4-20250514',
+  model = "claude-sonnet-4-20250514",
   systemPromptSuffix,
   maxTokens = 4096,
   toolVersion,
@@ -295,7 +333,7 @@ export async function computerUseLoop({
   thinkingBudget?: number;
   tokenEfficientToolsBeta?: boolean;
   onlyNMostRecentImages?: number;
-  signalBus?: import('./signals/bus').SignalBus;
+  signalBus?: import("./signals/bus").SignalBus;
   executionConfig?: ExecutionConfig;
   playwrightCapabilities?: PlaywrightCapabilityDef[];
   tools?: ComputerUseTool[];
@@ -304,10 +342,12 @@ export async function computerUseLoop({
   const messages = await samplingLoop({
     model,
     systemPromptSuffix,
-    messages: [{
-      role: 'user',
-      content: query,
-    }],
+    messages: [
+      {
+        role: "user",
+        content: query,
+      },
+    ],
     apiKey,
     maxTokens,
     toolVersion,
