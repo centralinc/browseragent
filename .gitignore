@@ -1,6 +1,6 @@
 # Dependencies
 node_modules/
-package-lock.json
+bun.lockb
 
 # TypeScript
 *.tsbuildinfo
@@ -28,10 +28,13 @@ logs/
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+pnpm-debug.log*
 
 # Testing
 coverage/
 .nyc_output/
+test-results/
+playwright-report/
 
 # Misc
 .cache/
@@ -47,3 +50,12 @@ examples/example-beam.ts
 
 # Test package folder
 test-published-package/
+
+# NPM package tarball
+*.tgz
+
+# Playwright artifacts
+/test-results/
+/playwright-report/
+/blob-report/
+/playwright/.cache/

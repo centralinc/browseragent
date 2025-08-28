@@ -142,7 +142,7 @@ export class ComputerUseAgent {
     this.apiKey = apiKey;
     this.model = model;
     this.page = page;
-    this.executionConfig = executionConfig;
+    this.executionConfig = executionConfig ?? {};
     this.playwrightCapabilities = playwrightCapabilities;
     this.tools = tools;
 
@@ -227,20 +227,21 @@ Respond ONLY with the JSON object, no additional text.`;
     }
 
     // Execute the computer use loop
-    const messages = await computerUseLoop({
+    const loopParams = {
       query: finalQuery,
       apiKey: this.apiKey,
       playwrightPage: this.page,
       model: this.model,
-      systemPromptSuffix,
-      thinkingBudget,
-      maxTokens,
-      onlyNMostRecentImages,
+      ...(systemPromptSuffix && { systemPromptSuffix }),
+      ...(thinkingBudget && { thinkingBudget }),
+      ...(maxTokens && { maxTokens }),
+      ...(onlyNMostRecentImages && { onlyNMostRecentImages }),
       signalBus: this.signalBus,
-      executionConfig: this.executionConfig,
+      ...(this.executionConfig && Object.keys(this.executionConfig).length > 0 && { executionConfig: this.executionConfig }),
       playwrightCapabilities: this.playwrightCapabilities,
       tools: this.tools,
-    });
+    };
+    const messages = await computerUseLoop(loopParams);
 
     const lastMessage = messages[messages.length - 1];
     if (!lastMessage) {
