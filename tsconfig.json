@@ -39,7 +39,8 @@
     "tools/**/*.ts",
     "types/**/*.ts",
     "utils/**/*.ts",
-    "signals/**/*.ts"
+    "signals/**/*.ts",
+    "*.config.ts"
   ],
   "exclude": [
     "node_modules",

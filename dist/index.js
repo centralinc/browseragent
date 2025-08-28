@@ -1373,9 +1373,9 @@ async function computerUseLoop({
   tools = []
 }) {
   const startTime = Date.now();
-  const messages = await samplingLoop({
+  const samplingParams = {
     model,
-    systemPromptSuffix,
+    ...systemPromptSuffix && { systemPromptSuffix },
     messages: [
       {
         role: "user",
@@ -1383,17 +1383,18 @@ async function computerUseLoop({
       }
     ],
     apiKey,
-    maxTokens,
-    toolVersion,
-    thinkingBudget,
+    ...maxTokens && { maxTokens },
+    ...toolVersion && { toolVersion },
+    ...thinkingBudget && { thinkingBudget },
     tokenEfficientToolsBeta,
-    onlyNMostRecentImages,
+    ...onlyNMostRecentImages && { onlyNMostRecentImages },
     playwrightPage,
-    signalBus,
-    executionConfig,
+    ...signalBus && { signalBus },
+    ...executionConfig && { executionConfig },
     playwrightCapabilities,
     tools
-  });
+  };
+  const messages = await samplingLoop(samplingParams);
   const elapsed = ((Date.now() - startTime) / 1e3).toFixed(2);
   console.log(`\u23F1\uFE0F  Agent finished in ${elapsed}s`);
   return messages;
