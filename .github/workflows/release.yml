@@ -42,20 +42,16 @@ jobs:
       - name: Build package
         run: npm run build
         
-      - name: Check for changesets
-        id: check-changesets
+      - name: Check for changesets and publish
         run: |
+          # Check if there are any changeset files
           if [ -n "$(find .changeset -name '*.md' -not -name 'README.md' -print -quit)" ]; then
-            echo "has-changesets=true" >> $GITHUB_OUTPUT
+            echo "📦 Found changesets, processing release..."
+            npm run version
+            npm run release
           else
-            echo "has-changesets=false" >> $GITHUB_OUTPUT
+            echo "✅ No changesets found, skipping release"
           fi
-
-      - name: Version and Publish
-        if: steps.check-changesets.outputs.has-changesets == 'true'
-        run: |
-          npm run version
-          npm run release
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
           NPM_CONFIG_PROVENANCE: true
