@@ -35,3 +35,7 @@ export type {
   CapabilityDecoratorOptions,
   RegistryAwareTool,
 } from "./tools/registry";
+
+// Export playwright-specific types
+export type { PlaywrightCapabilityDef } from "./tools/playwright-capabilities";
+export type { PlaywrightActionParams } from "./tools/playwright";
