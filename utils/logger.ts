@@ -4,6 +4,23 @@
 export interface Logger {
   /** Log any event with type, message and optional data */
   log(type: string, message: string, data?: unknown): void;
+  
+  /** Agent lifecycle methods */
+  agentStart(query: string, model: string, options?: unknown): void;
+  agentComplete(query: string, duration: number, messageCount: number): void;
+  agentError(query: string, error: Error, duration: number): void;
+  
+  /** LLM response logging */
+  llmResponse(stopReason: string, step: number, content?: unknown): void;
+  
+  /** Tool execution logging */
+  toolStart(toolName: string, step: number, input?: unknown): void;
+  toolComplete(toolName: string, step: number, duration: number, output?: unknown): void;
+  toolError(toolName: string, step: number, error: Error, duration: number): void;
+  
+  /** Signal and debug logging */
+  signal(signal: string, step: number, reason?: string): void;
+  debug(message: string, data?: unknown): void;
 }
 
 /**

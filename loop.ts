@@ -227,7 +227,7 @@ ${capabilityDocs}`,
     console.log("===");
 
     // Log LLM response
-    logger.llmResponse(response.stop_reason, stepIndex, loggableContent);
+    logger.llmResponse(response.stop_reason ?? "unknown", stepIndex, loggableContent);
 
     messages.push({
       role: "assistant",
