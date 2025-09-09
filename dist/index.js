@@ -197,7 +197,9 @@ var index_exports = {};
 __export(index_exports, {
   Action: () => Action,
   ComputerUseAgent: () => ComputerUseAgent,
+  NoOpLogger: () => NoOpLogger,
   PLAYWRIGHT_CAPABILITIES: () => PLAYWRIGHT_CAPABILITIES2,
+  SimpleLogger: () => SimpleLogger,
   capability: () => capability,
   capabilitySchema: () => capabilitySchema,
   defineCapability: () => defineCapability,
@@ -932,6 +934,128 @@ ${resultText}`;
   return resultText;
 }
 
+// utils/logger.ts
+var SimpleLogger = class {
+  constructor(includeData = true) {
+    this.includeData = includeData;
+  }
+  log(type, message, data) {
+    const timestamp = (/* @__PURE__ */ new Date()).toISOString();
+    let logMessage = `[${timestamp}] ${type.toUpperCase()}: ${message}`;
+    if (this.includeData && data) {
+      const truncatedData = this.truncateScreenshots(data);
+      logMessage += ` | ${JSON.stringify(truncatedData, null, 2)}`;
+    }
+    console.log(logMessage);
+  }
+  truncateScreenshots(data) {
+    if (typeof data !== "object" || data === null) {
+      return data;
+    }
+    if (Array.isArray(data)) {
+      return data.map((item) => this.truncateScreenshots(item));
+    }
+    const result = {};
+    for (const [key, value] of Object.entries(data)) {
+      if (typeof value === "string") {
+        if (value.startsWith("data:image/") && value.length > 100) {
+          const [prefix, ...rest] = value.split(",");
+          const base64Data = rest.join(",");
+          result[key] = `${prefix},<base64-image-data-${base64Data.length}-bytes>`;
+        } else if (value.length > 500) {
+          result[key] = `${value.substring(0, 500)}...<truncated-${value.length}-chars>`;
+        } else {
+          result[key] = value;
+        }
+      } else if (typeof value === "object") {
+        result[key] = this.truncateScreenshots(value);
+      } else {
+        result[key] = value;
+      }
+    }
+    return result;
+  }
+  // Convenience methods for common log types
+  agentStart(query, model, options) {
+    this.log(
+      "agent",
+      `\u{1F916} Started execution: "${query}" (model: ${model})`,
+      options
+    );
+  }
+  agentComplete(query, duration, messageCount) {
+    const seconds = (duration / 1e3).toFixed(2);
+    this.log(
+      "agent",
+      `\u2705 Completed: "${query}" in ${seconds}s (${messageCount} messages)`
+    );
+  }
+  agentError(query, error, duration) {
+    const seconds = (duration / 1e3).toFixed(2);
+    this.log(
+      "agent",
+      `\u274C Failed: "${query}" after ${seconds}s - ${error.message}`,
+      { stack: error.stack }
+    );
+  }
+  llmResponse(stopReason, step, content) {
+    this.log(
+      "llm",
+      `\u{1F9E0} Response received [step ${step}] (stop: ${stopReason})`,
+      content
+    );
+  }
+  toolStart(toolName, step, input) {
+    this.log("tool", `\u{1F527} Starting ${toolName} [step ${step}]`, input);
+  }
+  toolComplete(toolName, step, duration, output) {
+    this.log(
+      "tool",
+      `\u2705 Completed ${toolName} [step ${step}] (${duration}ms)`,
+      output
+    );
+  }
+  toolError(toolName, step, error, duration) {
+    this.log(
+      "tool",
+      `\u274C Failed ${toolName} [step ${step}] (${duration}ms) - ${error.message}`
+    );
+  }
+  signal(signal, step, reason) {
+    const emoji = signal === "pause" ? "\u23F8\uFE0F" : signal === "resume" ? "\u25B6\uFE0F" : "\u{1F6D1}";
+    const reasonStr = reason ? ` (${reason})` : "";
+    this.log(
+      "signal",
+      `${emoji} ${signal.toUpperCase()} [step ${step}]${reasonStr}`
+    );
+  }
+  debug(message, data) {
+    this.log("debug", `\u{1F41B} ${message}`, data);
+  }
+};
+var NoOpLogger = class {
+  log() {
+  }
+  agentStart() {
+  }
+  agentComplete() {
+  }
+  agentError() {
+  }
+  llmResponse() {
+  }
+  toolStart() {
+  }
+  toolComplete() {
+  }
+  toolError() {
+  }
+  signal() {
+  }
+  debug() {
+  }
+};
+
 // tools/playwright-capabilities.ts
 var import_zod = require("zod");
 var PLAYWRIGHT_CAPABILITIES = /* @__PURE__ */ new Map();
@@ -1219,7 +1343,8 @@ async function samplingLoop({
   signalBus,
   executionConfig,
   playwrightCapabilities = [],
-  tools = []
+  tools = [],
+  logger = new NoOpLogger()
 }) {
   const selectedVersion = toolVersion || DEFAULT_TOOL_VERSION;
   const toolGroup = TOOL_GROUPS_BY_VERSION[selectedVersion];
@@ -1313,6 +1438,7 @@ ${capabilityDocs}`
     console.log("Stop reason:", response.stop_reason);
     console.log(loggableContent);
     console.log("===");
+    logger.llmResponse(response.stop_reason ?? "unknown", stepIndex, loggableContent);
     messages.push({
       role: "assistant",
       content: responseParams
@@ -1328,12 +1454,28 @@ ${capabilityDocs}`
       if (contentBlock.type === "tool_use" && contentBlock.name && contentBlock.input && typeof contentBlock.input === "object") {
         const input = contentBlock.input;
         hasToolUse = true;
+        const toolStartTime = Date.now();
+        logger.toolStart(contentBlock.name, stepIndex, input);
         try {
           const result = await toolCollection.run(contentBlock.name, input);
+          const toolDuration = Date.now() - toolStartTime;
+          logger.toolComplete(
+            contentBlock.name,
+            stepIndex,
+            toolDuration,
+            result
+          );
           const toolResult = makeApiToolResult(result, contentBlock.id);
           toolResultContent.push(toolResult);
         } catch (error) {
           console.error(error);
+          const toolDuration = Date.now() - toolStartTime;
+          logger.toolError(
+            contentBlock.name,
+            stepIndex,
+            error,
+            toolDuration
+          );
           if (signalBus) {
             signalBus.emitError(error);
           }
@@ -1364,13 +1506,14 @@ async function computerUseLoop({
   systemPromptSuffix,
   maxTokens = 4096,
   toolVersion,
-  thinkingBudget = 1024,
+  thinkingBudget,
   tokenEfficientToolsBeta = false,
   onlyNMostRecentImages,
   signalBus,
   executionConfig,
   playwrightCapabilities = [],
-  tools = []
+  tools = [],
+  logger = new NoOpLogger()
 }) {
   const startTime = Date.now();
   const samplingParams = {
@@ -1392,7 +1535,8 @@ async function computerUseLoop({
     ...signalBus && { signalBus },
     ...executionConfig && { executionConfig },
     playwrightCapabilities,
-    tools
+    tools,
+    logger
   };
   const messages = await samplingLoop(samplingParams);
   const elapsed = ((Date.now() - startTime) / 1e3).toFixed(2);
@@ -1588,7 +1732,8 @@ var ComputerUseAgent = class {
     model = "claude-sonnet-4-20250514",
     executionConfig,
     playwrightCapabilities = [],
-    tools = []
+    tools = [],
+    logger
   }) {
     this.apiKey = apiKey;
     this.model = model;
@@ -1596,8 +1741,23 @@ var ComputerUseAgent = class {
     this.executionConfig = executionConfig ?? {};
     this.playwrightCapabilities = playwrightCapabilities;
     this.tools = tools;
+    this.logger = logger ?? new NoOpLogger();
     this.signalBus = new SignalBus();
     this.controller = new AgentControllerImpl(this.signalBus);
+    this.controller.on("onPause", (data) => {
+      this.logger.signal("pause", data.step);
+    });
+    this.controller.on("onResume", (data) => {
+      this.logger.signal("resume", data.step);
+    });
+    this.controller.on("onCancel", (data) => {
+      this.logger.signal("cancel", data.step, data.reason);
+    });
+    this.controller.on("onError", (data) => {
+      this.logger.debug(`Agent error at step ${data.step}`, {
+        error: data.error
+      });
+    });
   }
   /**
    * Execute a computer use task with Claude
@@ -1628,12 +1788,20 @@ var ComputerUseAgent = class {
    * @see https://docs.anthropic.com/en/docs/build-with-claude/extended-thinking
    */
   async execute(query, schema, options) {
+    const startTime = Date.now();
     const {
       systemPromptSuffix,
       thinkingBudget,
       maxTokens,
       onlyNMostRecentImages
     } = options ?? {};
+    this.logger.agentStart(query, this.model, {
+      systemPromptSuffix,
+      thinkingBudget,
+      maxTokens,
+      onlyNMostRecentImages,
+      schema: schema ? "provided" : "none"
+    });
     let finalQuery = query;
     if (schema) {
       const jsonSchema = (0, import_zod_to_json_schema.default)(schema);
@@ -1646,31 +1814,43 @@ ${JSON.stringify(jsonSchema, null, 2)}
 
 Respond ONLY with the JSON object, no additional text.`;
     }
-    const loopParams = {
-      query: finalQuery,
-      apiKey: this.apiKey,
-      playwrightPage: this.page,
-      model: this.model,
-      ...systemPromptSuffix && { systemPromptSuffix },
-      ...thinkingBudget && { thinkingBudget },
-      ...maxTokens && { maxTokens },
-      ...onlyNMostRecentImages && { onlyNMostRecentImages },
-      signalBus: this.signalBus,
-      ...this.executionConfig && Object.keys(this.executionConfig).length > 0 && { executionConfig: this.executionConfig },
-      playwrightCapabilities: this.playwrightCapabilities,
-      tools: this.tools
-    };
-    const messages = await computerUseLoop(loopParams);
-    const lastMessage = messages[messages.length - 1];
-    if (!lastMessage) {
-      throw new Error("No response received");
+    try {
+      const loopParams = {
+        query: finalQuery,
+        apiKey: this.apiKey,
+        playwrightPage: this.page,
+        model: this.model,
+        ...systemPromptSuffix && { systemPromptSuffix },
+        ...thinkingBudget && { thinkingBudget },
+        ...maxTokens && { maxTokens },
+        ...onlyNMostRecentImages && { onlyNMostRecentImages },
+        signalBus: this.signalBus,
+        ...this.executionConfig && Object.keys(this.executionConfig).length > 0 && {
+          executionConfig: this.executionConfig
+        },
+        playwrightCapabilities: this.playwrightCapabilities,
+        tools: this.tools,
+        logger: this.logger
+        // Pass logger to the loop
+      };
+      const messages = await computerUseLoop(loopParams);
+      const lastMessage = messages[messages.length - 1];
+      if (!lastMessage) {
+        throw new Error("No response received");
+      }
+      const response = this.extractTextFromMessage(lastMessage);
+      const duration = Date.now() - startTime;
+      this.logger.agentComplete(query, duration, messages.length);
+      if (!schema) {
+        return response;
+      }
+      const parsed = this.parseJsonResponse(response);
+      return schema.parse(parsed);
+    } catch (error) {
+      const duration = Date.now() - startTime;
+      this.logger.agentError(query, error, duration);
+      throw error;
     }
-    const response = this.extractTextFromMessage(lastMessage);
-    if (!schema) {
-      return response;
-    }
-    const parsed = this.parseJsonResponse(response);
-    return schema.parse(parsed);
   }
   extractTextFromMessage(message) {
     if (typeof message.content === "string") {
@@ -1893,7 +2073,9 @@ init_registry();
 0 && (module.exports = {
   Action,
   ComputerUseAgent,
+  NoOpLogger,
   PLAYWRIGHT_CAPABILITIES,
+  SimpleLogger,
   capability,
   capabilitySchema,
   defineCapability,
