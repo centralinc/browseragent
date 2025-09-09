@@ -39,3 +39,7 @@ export type {
 // Export playwright-specific types
 export type { PlaywrightCapabilityDef } from "./tools/playwright-capabilities";
 export type { PlaywrightActionParams } from "./tools/playwright";
+
+// Export logger types and implementations
+export type { Logger } from "./utils/logger";
+export { SimpleLogger, NoOpLogger } from "./utils/logger";
