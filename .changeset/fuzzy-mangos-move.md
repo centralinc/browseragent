@@ -1,5 +1,5 @@
 ---
-"@centralinc/browseragent": patch
+"@centralinc/browseragent": minor
 ---
 
 Fix thinking budget causing API errors by removing default value

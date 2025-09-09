@@ -47,7 +47,23 @@ jobs:
           # Check if there are any changeset files
           if [ -n "$(find .changeset -name '*.md' -not -name 'README.md' -print -quit)" ]; then
             echo "📦 Found changesets, processing release..."
+            
+            # Configure git for commits
+            git config --global user.email "action@github.com"
+            git config --global user.name "GitHub Action"
+            
+            # Update versions and commit changes
             npm run version
+            
+            # Check if there are changes to commit
+            if [ -n "$(git status --porcelain)" ]; then
+              echo "💾 Committing version changes..."
+              git add .
+              git commit -m "chore: release package [skip ci]"
+              git push
+            fi
+            
+            # Now publish the updated version
             npm run release
           else
             echo "✅ No changesets found, skipping release"
@@ -55,3 +71,4 @@ jobs:
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
           NPM_CONFIG_PROVENANCE: true
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
