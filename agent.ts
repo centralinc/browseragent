@@ -7,6 +7,8 @@ import type { ControlSignal, SignalEvent } from "./signals/bus";
 import type { ExecutionConfig } from "./tools/types/base";
 import type { PlaywrightCapabilityDef } from "./tools/playwright-capabilities";
 import type { ComputerUseTool } from "./tools/types/base";
+import type { Logger } from "./utils/logger";
+import { NoOpLogger } from "./utils/logger";
 
 /**
  * Event callback interfaces for agent controller
@@ -27,7 +29,7 @@ export interface AgentController {
   /** Subscribe to agent events - returns unsubscribe function */
   on<K extends keyof AgentControllerEvents>(
     event: K,
-    callback: AgentControllerEvents[K],
+    callback: AgentControllerEvents[K]
   ): () => void;
 }
 
@@ -43,29 +45,29 @@ export class AgentControllerImpl implements AgentController {
 
   on<K extends keyof AgentControllerEvents>(
     event: K,
-    callback: AgentControllerEvents[K],
+    callback: AgentControllerEvents[K]
   ): () => void {
     // Pass through the full payload from SignalBus
     return this.bus.on(event as SignalEvent, (payload) => {
       switch (event) {
         case "onPause":
           (callback as AgentControllerEvents["onPause"])(
-            payload as SignalEventPayloadMap["onPause"],
+            payload as SignalEventPayloadMap["onPause"]
           );
           break;
         case "onResume":
           (callback as AgentControllerEvents["onResume"])(
-            payload as SignalEventPayloadMap["onResume"],
+            payload as SignalEventPayloadMap["onResume"]
           );
           break;
         case "onCancel":
           (callback as AgentControllerEvents["onCancel"])(
-            payload as SignalEventPayloadMap["onCancel"],
+            payload as SignalEventPayloadMap["onCancel"]
           );
           break;
         case "onError":
           (callback as AgentControllerEvents["onError"])(
-            payload as SignalEventPayloadMap["onError"],
+            payload as SignalEventPayloadMap["onError"]
           );
           break;
       }
@@ -89,6 +91,7 @@ export class ComputerUseAgent {
   private executionConfig?: ExecutionConfig;
   private playwrightCapabilities: PlaywrightCapabilityDef[];
   private tools: ComputerUseTool[];
+  private logger: Logger;
 
   /** Expose control-flow signals */
   public readonly controller: AgentController;
@@ -113,6 +116,7 @@ export class ComputerUseAgent {
     executionConfig,
     playwrightCapabilities = [],
     tools = [],
+    logger,
   }: {
     /** Anthropic API key for authentication */
     apiKey: string;
@@ -138,6 +142,11 @@ export class ComputerUseAgent {
      * These can be any ComputerUseTool implementations
      */
     tools?: ComputerUseTool[];
+    /**
+     * Custom logger for agent operations
+     * @default NoOpLogger (no logging)
+     */
+    logger?: Logger;
   }) {
     this.apiKey = apiKey;
     this.model = model;
@@ -145,10 +154,30 @@ export class ComputerUseAgent {
     this.executionConfig = executionConfig ?? {};
     this.playwrightCapabilities = playwrightCapabilities;
     this.tools = tools;
+    this.logger = logger ?? new NoOpLogger();
 
     // NEW: create the signal bus + controller up-front so callers can pause *during* first run
     this.signalBus = new SignalBus();
     this.controller = new AgentControllerImpl(this.signalBus);
+
+    // Set up signal logging
+    this.controller.on("onPause", (data) => {
+      this.logger.signal("pause", data.step);
+    });
+
+    this.controller.on("onResume", (data) => {
+      this.logger.signal("resume", data.step);
+    });
+
+    this.controller.on("onCancel", (data) => {
+      this.logger.signal("cancel", data.step, data.reason);
+    });
+
+    this.controller.on("onError", (data) => {
+      this.logger.debug(`Agent error at step ${data.step}`, {
+        error: data.error,
+      });
+    });
   }
 
   /**
@@ -203,14 +232,25 @@ export class ComputerUseAgent {
        * @default undefined (no limit)
        */
       onlyNMostRecentImages?: number;
-    },
+    }
   ): Promise<T> {
+    const startTime = Date.now();
+
     const {
       systemPromptSuffix,
       thinkingBudget,
       maxTokens,
       onlyNMostRecentImages,
     } = options ?? {};
+
+    // Log agent start
+    this.logger.agentStart(query, this.model, {
+      systemPromptSuffix,
+      thinkingBudget,
+      maxTokens,
+      onlyNMostRecentImages,
+      schema: schema ? "provided" : "none",
+    });
 
     // Prepare query with schema instructions if schema is provided
     let finalQuery = query;
@@ -226,38 +266,53 @@ ${JSON.stringify(jsonSchema, null, 2)}
 Respond ONLY with the JSON object, no additional text.`;
     }
 
-    // Execute the computer use loop
-    const loopParams = {
-      query: finalQuery,
-      apiKey: this.apiKey,
-      playwrightPage: this.page,
-      model: this.model,
-      ...(systemPromptSuffix && { systemPromptSuffix }),
-      ...(thinkingBudget && { thinkingBudget }),
-      ...(maxTokens && { maxTokens }),
-      ...(onlyNMostRecentImages && { onlyNMostRecentImages }),
-      signalBus: this.signalBus,
-      ...(this.executionConfig && Object.keys(this.executionConfig).length > 0 && { executionConfig: this.executionConfig }),
-      playwrightCapabilities: this.playwrightCapabilities,
-      tools: this.tools,
-    };
-    const messages = await computerUseLoop(loopParams);
+    try {
+      // Execute the computer use loop
+      const loopParams = {
+        query: finalQuery,
+        apiKey: this.apiKey,
+        playwrightPage: this.page,
+        model: this.model,
+        ...(systemPromptSuffix && { systemPromptSuffix }),
+        ...(thinkingBudget && { thinkingBudget }),
+        ...(maxTokens && { maxTokens }),
+        ...(onlyNMostRecentImages && { onlyNMostRecentImages }),
+        signalBus: this.signalBus,
+        ...(this.executionConfig &&
+          Object.keys(this.executionConfig).length > 0 && {
+            executionConfig: this.executionConfig,
+          }),
+        playwrightCapabilities: this.playwrightCapabilities,
+        tools: this.tools,
+        logger: this.logger, // Pass logger to the loop
+      };
+      const messages = await computerUseLoop(loopParams);
 
-    const lastMessage = messages[messages.length - 1];
-    if (!lastMessage) {
-      throw new Error("No response received");
+      const lastMessage = messages[messages.length - 1];
+      if (!lastMessage) {
+        throw new Error("No response received");
+      }
+
+      const response = this.extractTextFromMessage(lastMessage);
+
+      // Log completion
+      const duration = Date.now() - startTime;
+      this.logger.agentComplete(query, duration, messages.length);
+
+      // If no schema provided, return string response
+      if (!schema) {
+        return response as T;
+      }
+
+      // Parse and validate structured response
+      const parsed = this.parseJsonResponse(response);
+      return schema.parse(parsed);
+    } catch (error) {
+      // Log error
+      const duration = Date.now() - startTime;
+      this.logger.agentError(query, error as Error, duration);
+      throw error;
     }
-
-    const response = this.extractTextFromMessage(lastMessage);
-
-    // If no schema provided, return string response
-    if (!schema) {
-      return response as T;
-    }
-
-    // Parse and validate structured response
-    const parsed = this.parseJsonResponse(response);
-    return schema.parse(parsed);
   }
 
   private extractTextFromMessage(message: {

@@ -17,6 +17,8 @@ import {
   PROMPT_CACHING_BETA_FLAG,
 } from "./utils/message-processing";
 import { makeApiToolResult } from "./utils/tool-results";
+import type { Logger } from "./utils/logger";
+import { NoOpLogger } from "./utils/logger";
 import { ComputerTool20241022, ComputerTool20250124 } from "./tools/computer";
 import { PlaywrightTool } from "./tools/playwright";
 import { Action } from "./tools/types/computer";
@@ -26,7 +28,9 @@ import type { ComputerUseTool } from "./tools/types/base";
 
 // System prompt optimized for the environment
 const SYSTEM_PROMPT = `<SYSTEM_CAPABILITY>
-* You are utilising an Ubuntu virtual machine using ${process.arch} architecture with internet access.
+* You are utilising an Ubuntu virtual machine using ${
+  process.arch
+} architecture with internet access.
 * When you connect to the display, CHROMIUM IS ALREADY OPEN. The url bar is not visible but it is there.
 * If you need to navigate to a new page, you can use the playwright 'goto' method for faster navigation.
 * When viewing a page it can be helpful to zoom out so that you can see everything on the page.
@@ -75,6 +79,7 @@ export async function samplingLoop({
   executionConfig,
   playwrightCapabilities = [],
   tools = [],
+  logger = new NoOpLogger(),
 }: {
   model: string;
   systemPromptSuffix?: string;
@@ -90,6 +95,7 @@ export async function samplingLoop({
   executionConfig?: ExecutionConfig;
   playwrightCapabilities?: PlaywrightCapabilityDef[];
   tools?: ComputerUseTool[];
+  logger?: Logger;
 }): Promise<BetaMessageParam[]> {
   const selectedVersion = toolVersion || DEFAULT_TOOL_VERSION;
   const toolGroup = TOOL_GROUPS_BY_VERSION[selectedVersion];
@@ -97,20 +103,20 @@ export async function samplingLoop({
   // Create computer tools
   const computerTools = toolGroup.tools.map(
     (Tool: typeof ComputerTool20241022 | typeof ComputerTool20250124) =>
-      new Tool(playwrightPage, executionConfig),
+      new Tool(playwrightPage, executionConfig)
   );
 
   // Create playwright tool with instance-specific capabilities
   const playwrightTool = new PlaywrightTool(
     playwrightPage,
-    playwrightCapabilities,
+    playwrightCapabilities
   );
 
   // Combine all tools (computer tools + playwright tool + additional tools)
   const toolCollection = new ToolCollection(
     ...computerTools,
     playwrightTool,
-    ...tools,
+    ...tools
   );
 
   // Provide Page access to browser-aware tools
@@ -179,7 +185,7 @@ ${capabilityDocs}`,
       maybeFilterToNMostRecentImages(
         messages,
         onlyNMostRecentImages,
-        imageTruncationThreshold,
+        imageTruncationThreshold
       );
     }
 
@@ -220,6 +226,9 @@ ${capabilityDocs}`,
     console.log(loggableContent);
     console.log("===");
 
+    // Log LLM response
+    logger.llmResponse(response.stop_reason, stepIndex, loggableContent);
+
     messages.push({
       role: "assistant",
       content: responseParams,
@@ -245,13 +254,37 @@ ${capabilityDocs}`,
         const input = contentBlock.input as ToolUseInput;
         hasToolUse = true;
 
+        const toolStartTime = Date.now();
+
+        // Log tool start
+        logger.toolStart(contentBlock.name, stepIndex, input);
+
         try {
           const result = await toolCollection.run(contentBlock.name, input);
+
+          // Log tool completion
+          const toolDuration = Date.now() - toolStartTime;
+          logger.toolComplete(
+            contentBlock.name,
+            stepIndex,
+            toolDuration,
+            result
+          );
 
           const toolResult = makeApiToolResult(result, contentBlock.id!);
           toolResultContent.push(toolResult);
         } catch (error) {
           console.error(error);
+
+          // Log tool error
+          const toolDuration = Date.now() - toolStartTime;
+          logger.toolError(
+            contentBlock.name,
+            stepIndex,
+            error as Error,
+            toolDuration
+          );
+
           // Emit error signal if signalBus is available
           if (signalBus) {
             signalBus.emitError(error);
@@ -267,7 +300,7 @@ ${capabilityDocs}`,
       response.stop_reason !== "tool_use"
     ) {
       console.log(
-        "No tool use or results, and not waiting for tool use, ending loop",
+        "No tool use or results, and not waiting for tool use, ending loop"
       );
       return messages;
     }
@@ -322,6 +355,7 @@ export async function computerUseLoop({
   executionConfig,
   playwrightCapabilities = [],
   tools = [],
+  logger = new NoOpLogger(),
 }: {
   query: string;
   apiKey: string;
@@ -337,6 +371,7 @@ export async function computerUseLoop({
   executionConfig?: ExecutionConfig;
   playwrightCapabilities?: PlaywrightCapabilityDef[];
   tools?: ComputerUseTool[];
+  logger?: Logger;
 }): Promise<BetaMessageParam[]> {
   const startTime = Date.now();
   const samplingParams = {
@@ -359,6 +394,7 @@ export async function computerUseLoop({
     ...(executionConfig && { executionConfig }),
     playwrightCapabilities,
     tools,
+    logger,
   };
   const messages = await samplingLoop(samplingParams);
   const elapsed = ((Date.now() - startTime) / 1000).toFixed(2);
