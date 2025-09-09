@@ -216,7 +216,7 @@ export class ComputerUseAgent {
       systemPromptSuffix?: string;
       /**
        * Token budget for Claude's internal reasoning process
-       * @default 1024
+       * @default undefined (thinking disabled)
        * @see https://docs.anthropic.com/en/docs/build-with-claude/extended-thinking#working-with-thinking-budgets
        */
       thinkingBudget?: number;

@@ -331,7 +331,7 @@ ${capabilityDocs}`,
  * @param options.systemPromptSuffix - Additional instructions appended to system prompt
  * @param options.maxTokens - Maximum tokens for response (default: 4096)
  * @param options.toolVersion - Computer use tool version (auto-selected based on model)
- * @param options.thinkingBudget - Token budget for Claude's reasoning (default: 1024)
+ * @param options.thinkingBudget - Token budget for Claude's reasoning (optional, disabled if not provided)
  * @param options.tokenEfficientToolsBeta - Enable token-efficient tools beta
  * @param options.onlyNMostRecentImages - Limit number of recent images to include
  *
@@ -348,7 +348,7 @@ export async function computerUseLoop({
   systemPromptSuffix,
   maxTokens = 4096,
   toolVersion,
-  thinkingBudget = 1024,
+  thinkingBudget,
   tokenEfficientToolsBeta = false,
   onlyNMostRecentImages,
   signalBus,
