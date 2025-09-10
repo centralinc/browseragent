@@ -1,4 +1,7 @@
 export { ComputerUseAgent } from "./agent";
+export { PlaywrightTool } from "./tools/playwright";
+export { ComputerTool, ComputerTool20241022, ComputerTool20250124 } from "./tools/computer";
+export { ToolCollection } from "./tools/collection";
 export type { BetaMessageParam, BetaTextBlock } from "./types/beta";
 export type { ToolVersion } from "./tools/collection";
 export { Action } from "./tools/types/computer";
@@ -9,6 +12,8 @@ export type {
   ScreenshotConfig,
   MouseConfig,
   ScrollingConfig,
+  ComputerUseTool,
+  ComputerUseToolDef,
 } from "./tools/types/base";
 export type {
   AgentController,
