@@ -1,5 +1,11 @@
 # @centralinc/browseragent
 
+## 1.4.1
+
+### Patch Changes
+
+- 62919e1: Add exports for ComputerUseTool interface, PlaywrightTool, ComputerTool implementations, and related types to enable external tool usage
+
 ## 1.4.0
 
 ### Minor Changes

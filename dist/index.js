@@ -196,10 +196,15 @@ var init_registry = __esm({
 var index_exports = {};
 __export(index_exports, {
   Action: () => Action,
+  ComputerTool: () => ComputerTool,
+  ComputerTool20241022: () => ComputerTool20241022,
+  ComputerTool20250124: () => ComputerTool20250124,
   ComputerUseAgent: () => ComputerUseAgent,
   NoOpLogger: () => NoOpLogger,
   PLAYWRIGHT_CAPABILITIES: () => PLAYWRIGHT_CAPABILITIES2,
+  PlaywrightTool: () => PlaywrightTool,
   SimpleLogger: () => SimpleLogger,
+  ToolCollection: () => ToolCollection,
   capability: () => capability,
   capabilitySchema: () => capabilitySchema,
   defineCapability: () => defineCapability,
@@ -2072,10 +2077,15 @@ init_registry();
 // Annotate the CommonJS export names for ESM import in node:
 0 && (module.exports = {
   Action,
+  ComputerTool,
+  ComputerTool20241022,
+  ComputerTool20250124,
   ComputerUseAgent,
   NoOpLogger,
   PLAYWRIGHT_CAPABILITIES,
+  PlaywrightTool,
   SimpleLogger,
+  ToolCollection,
   capability,
   capabilitySchema,
   defineCapability,
