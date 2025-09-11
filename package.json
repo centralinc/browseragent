@@ -1,6 +1,6 @@
 {
   "name": "@centralinc/browseragent",
-  "version": "1.4.1",
+  "version": "1.4.2",
   "description": "Browser automation agent using Computer Use with Playwright",
   "main": "./dist/index.cjs",
   "module": "./dist/index.js",

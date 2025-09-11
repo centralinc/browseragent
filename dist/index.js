@@ -1067,19 +1067,38 @@ var PLAYWRIGHT_CAPABILITIES = /* @__PURE__ */ new Map();
 PLAYWRIGHT_CAPABILITIES.set("goto", {
   method: "goto",
   displayName: "Navigate to URL",
-  description: "Navigate directly to any URL or website",
+  description: "Navigate directly to any URL or website with optional wait condition",
   usage: `Use this to navigate to any website directly without using the URL bar
-Call format: {"name": "playwright", "input": {"method": "goto", "args": ["url or domain"]}}
+Call format: {"name": "playwright", "input": {"method": "goto", "args": ["url or domain", "waitUntil"]}}
+- First argument: URL or domain (required)
+- Second argument: waitUntil condition (optional, defaults to "networkidle")
+  Valid waitUntil options:
+  * "load" - wait for the load event (all resources loaded)
+  * "domcontentloaded" - wait for DOMContentLoaded event (DOM ready)
+  * "networkidle" - wait for no network activity for 500ms (default)
+  * "commit" - wait for network response and document starts loading
+Examples:
+- Basic navigation: ["https://example.com"]
+- Fast navigation: ["https://example.com", "domcontentloaded"]
+- Full load: ["https://example.com", "load"]
 The tool will automatically add https:// if no protocol is specified
 This is faster and more reliable than using ctrl+l and typing in the URL bar`,
-  schema: import_zod.z.tuple([import_zod.z.string()]),
+  schema: import_zod.z.union([
+    import_zod.z.tuple([import_zod.z.string()]),
+    import_zod.z.tuple([import_zod.z.string(), import_zod.z.enum(["load", "domcontentloaded", "networkidle", "commit"])])
+  ]),
   handler: async (page, args) => {
-    if (args.length !== 1) {
-      throw new Error("goto method requires exactly one argument: the URL");
+    if (args.length < 1 || args.length > 2) {
+      throw new Error("goto method requires 1-2 arguments: URL and optional waitUntil condition");
     }
     const url = args[0];
+    const waitUntil = args[1];
     if (!url || typeof url !== "string") {
       throw new Error("URL must be a non-empty string");
+    }
+    const validWaitUntilOptions = ["load", "domcontentloaded", "networkidle", "commit"];
+    if (waitUntil && !validWaitUntilOptions.includes(waitUntil)) {
+      throw new Error(`Invalid waitUntil option: ${waitUntil}. Valid options: ${validWaitUntilOptions.join(", ")}`);
     }
     let normalizedURL;
     try {
@@ -1093,15 +1112,16 @@ This is faster and more reliable than using ctrl+l and typing in the URL bar`,
         throw new Error(`Invalid URL format: ${url}`);
       }
     }
+    const actualWaitUntil = waitUntil || "networkidle";
     await page.goto(normalizedURL, {
-      waitUntil: "networkidle",
+      waitUntil: actualWaitUntil,
       timeout: 3e4
     });
     await page.waitForTimeout(1e3);
     const currentURL = page.url();
     const title = await page.title();
     return {
-      output: `Successfully navigated to ${currentURL}. Page title: "${title}"`
+      output: `Successfully navigated to ${currentURL} (waitUntil: ${actualWaitUntil}). Page title: "${title}"`
     };
   }
 });
