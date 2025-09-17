@@ -13,5 +13,7 @@ export default defineConfig({
   external: [
     'playwright',
     '@playwright/test',
+    'zod',
+    'zod-to-json-schema',
   ],
 })
