@@ -1,5 +1,13 @@
 # @centralinc/browseragent
 
+## 1.4.5
+
+### Patch Changes
+
+- 5d03d6d: Fix CI workflow to properly publish with pnpm
+
+  This fixes the "spawn pnpm ENOENT" error by updating the GitHub Actions workflow to use pnpm consistently instead of mixing npm and pnpm commands. The package should now properly publish to npm.
+
 ## 1.4.4
 
 ### Patch Changes
