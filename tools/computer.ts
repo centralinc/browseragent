@@ -253,8 +253,22 @@ export class ComputerTool implements ComputerUseTool {
         throw new ToolError(`${action} is only available in version 20250124`);
       }
 
-      const scrollDirection = scrollDirectionParam || kwargs.scroll_direction;
-      const scrollAmountValue = scrollAmount || scroll_amount;
+      let scrollDirection = scrollDirectionParam || kwargs.scroll_direction;
+      let scrollAmountValue = scrollAmount || scroll_amount;
+
+      // Handle negative scroll amounts by converting to positive with appropriate direction
+      if (typeof scrollAmountValue === "number" && scrollAmountValue < 0) {
+        scrollAmountValue = Math.abs(scrollAmountValue);
+        
+        // If scroll direction is already set and conflicts with negative amount, handle appropriately
+        if (scrollDirection === "down" || scrollDirection === "right") {
+          // Override the direction since negative amount indicates opposite direction
+          scrollDirection = scrollDirection === "down" ? "up" : "left";
+        } else if (!scrollDirection) {
+          // Default to up for vertical scrolling when no direction specified
+          scrollDirection = "up";
+        }
+      }
 
       if (
         !scrollDirection ||
