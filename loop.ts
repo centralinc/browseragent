@@ -39,6 +39,7 @@ const SYSTEM_PROMPT = `<SYSTEM_CAPABILITY>
 * For efficient page navigation, use LARGE scroll amounts (80-90) to quickly move through content.
 * Only use small scroll amounts (5-15) when scrolling within specific UI elements like dropdowns or small lists.
 * Page-level scrolling with scroll_amount 80-90 shows mostly new content while keeping some overlap for context.
+* IMPORTANT: Always use positive scroll amounts. Use scroll_direction ('up', 'down', 'left', 'right') to control direction, not negative values.
 * The current date is ${DateTime.now().toFormat("EEEE, MMMM d, yyyy")}
 </SYSTEM_CAPABILITY>
 
