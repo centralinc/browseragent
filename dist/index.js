@@ -596,8 +596,16 @@ var ComputerTool = class {
       if (this.version !== "20250124") {
         throw new ToolError(`${action} is only available in version 20250124`);
       }
-      const scrollDirection = scrollDirectionParam || kwargs.scroll_direction;
-      const scrollAmountValue = scrollAmount || scroll_amount;
+      let scrollDirection = scrollDirectionParam || kwargs.scroll_direction;
+      let scrollAmountValue = scrollAmount || scroll_amount;
+      if (typeof scrollAmountValue === "number" && scrollAmountValue < 0) {
+        scrollAmountValue = Math.abs(scrollAmountValue);
+        if (scrollDirection === "down" || scrollDirection === "right") {
+          scrollDirection = scrollDirection === "down" ? "up" : "left";
+        } else if (!scrollDirection) {
+          scrollDirection = "up";
+        }
+      }
       if (!scrollDirection || !["up", "down", "left", "right"].includes(scrollDirection)) {
         throw new ToolError(
           `Scroll direction "${scrollDirection}" must be 'up', 'down', 'left', or 'right'`
@@ -1346,6 +1354,7 @@ var SYSTEM_PROMPT = `<SYSTEM_CAPABILITY>
 * For efficient page navigation, use LARGE scroll amounts (80-90) to quickly move through content.
 * Only use small scroll amounts (5-15) when scrolling within specific UI elements like dropdowns or small lists.
 * Page-level scrolling with scroll_amount 80-90 shows mostly new content while keeping some overlap for context.
+* IMPORTANT: Always use positive scroll amounts. Use scroll_direction ('up', 'down', 'left', 'right') to control direction, not negative values.
 * The current date is ${import_luxon.DateTime.now().toFormat("EEEE, MMMM d, yyyy")}
 </SYSTEM_CAPABILITY>
 
