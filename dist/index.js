@@ -221,6 +221,9 @@ var import_zod_to_json_schema = __toESM(require("zod-to-json-schema"));
 // loop.ts
 var import_sdk = require("@anthropic-ai/sdk");
 var import_luxon = require("luxon");
+var import_http = require("http");
+var import_https = require("https");
+var import_dns = require("dns");
 
 // tools/types/computer.ts
 var Action = /* @__PURE__ */ ((Action2) => {
@@ -1075,6 +1078,7 @@ var DEFAULT_RETRY_CONFIG = {
   initialDelayMs: 1e3,
   maxDelayMs: 3e4,
   backoffMultiplier: 2,
+  preferIPv4: false,
   retryableErrors: [
     "Connection error",
     "ECONNREFUSED",
@@ -1477,7 +1481,20 @@ ${capabilityDocs}`
       betas.push("token-efficient-tools-2025-02-19");
     }
     let imageTruncationThreshold = onlyNMostRecentImages || 20;
-    const client = new import_sdk.Anthropic({ apiKey, maxRetries: 4 });
+    const clientOptions = { apiKey, maxRetries: 4 };
+    if (retryConfig == null ? void 0 : retryConfig.preferIPv4) {
+      const ipv4Lookup = (hostname, options, callback) => {
+        if (typeof options === "function") {
+          return (0, import_dns.lookup)(hostname, { family: 4 }, options);
+        }
+        if (callback) {
+          return (0, import_dns.lookup)(hostname, { ...options, family: 4 }, callback);
+        }
+      };
+      clientOptions.httpAgent = new import_http.Agent({ lookup: ipv4Lookup });
+      clientOptions.httpsAgent = new import_https.Agent({ lookup: ipv4Lookup });
+    }
+    const client = new import_sdk.Anthropic(clientOptions);
     const enablePromptCaching = true;
     if (enablePromptCaching) {
       betas.push(PROMPT_CACHING_BETA_FLAG);
