@@ -522,6 +522,36 @@ const result = await agent.execute(
 );
 ```
 
+### Retry Configuration
+
+The SDK includes built-in retry logic for handling connection errors and transient failures:
+
+```typescript
+import { ComputerUseAgent, type RetryConfig } from "@centralinc/browseragent";
+
+const retryConfig: RetryConfig = {
+  maxRetries: 5,             // Maximum retry attempts (default: 3)
+  initialDelayMs: 2000,      // Initial delay between retries (default: 1000ms)
+  maxDelayMs: 60000,         // Maximum delay between retries (default: 30000ms)
+  backoffMultiplier: 2.5,    // Exponential backoff multiplier (default: 2)
+  retryableErrors: [         // Errors that trigger retries
+    "Connection error",
+    "ECONNREFUSED",
+    "ETIMEDOUT",
+    "ECONNRESET",
+    "socket hang up",
+  ],
+};
+
+const agent = new ComputerUseAgent({
+  apiKey: process.env.ANTHROPIC_API_KEY!,
+  page,
+  retryConfig, // Custom retry configuration
+});
+```
+
+The retry mechanism uses exponential backoff with jitter to avoid thundering herd problems. Connection errors and network timeouts are automatically retried with increasing delays.
+
 ### Tool Registry API
 
 The SDK exports functions for extending capabilities:
