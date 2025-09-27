@@ -23,6 +23,7 @@ async function retryExample(): Promise<void> {
       initialDelayMs: 2000,
       maxDelayMs: 60000,
       backoffMultiplier: 2.5,
+      preferIPv4: true, // Fix for Tailscale/VPN IPv6 connectivity issues
       retryableErrors: [
         "Connection error",
         "ECONNREFUSED",
@@ -49,7 +50,8 @@ async function retryExample(): Promise<void> {
     console.log(`   - Initial delay: ${customRetryConfig.initialDelayMs}ms`);
     console.log(`   - Max delay: ${customRetryConfig.maxDelayMs}ms`);
     console.log(`   - Backoff multiplier: ${customRetryConfig.backoffMultiplier}x`);
-    console.log(`   - Retryable errors: ${customRetryConfig.retryableErrors.length} types\n`);
+    console.log(`   - Prefer IPv4: ${customRetryConfig.preferIPv4} (fixes Tailscale/VPN issues)`);
+    console.log(`   - Retryable errors: ${customRetryConfig.retryableErrors?.length ?? 0} types\n`);
 
     // Navigate to a test page
     await page.goto("https://example.com");

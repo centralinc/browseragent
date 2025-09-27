@@ -6,6 +6,8 @@ export interface RetryConfig {
   maxDelayMs?: number;
   backoffMultiplier?: number;
   retryableErrors?: string[];
+  /** Prefer IPv4 DNS resolution to avoid IPv6 connectivity issues (useful with VPNs like Tailscale) */
+  preferIPv4?: boolean;
 }
 
 const DEFAULT_RETRY_CONFIG: Required<RetryConfig> = {
@@ -13,6 +15,7 @@ const DEFAULT_RETRY_CONFIG: Required<RetryConfig> = {
   initialDelayMs: 1000,
   maxDelayMs: 30000,
   backoffMultiplier: 2,
+  preferIPv4: false,
   retryableErrors: [
     "Connection error",
     "ECONNREFUSED",

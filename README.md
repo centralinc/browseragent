@@ -534,6 +534,7 @@ const retryConfig: RetryConfig = {
   initialDelayMs: 2000,      // Initial delay between retries (default: 1000ms)
   maxDelayMs: 60000,         // Maximum delay between retries (default: 30000ms)
   backoffMultiplier: 2.5,    // Exponential backoff multiplier (default: 2)
+  preferIPv4: true,          // Prefer IPv4 DNS resolution (helpful with VPNs like Tailscale)
   retryableErrors: [         // Errors that trigger retries
     "Connection error",
     "ECONNREFUSED",
@@ -551,6 +552,8 @@ const agent = new ComputerUseAgent({
 ```
 
 The retry mechanism uses exponential backoff with jitter to avoid thundering herd problems. Connection errors and network timeouts are automatically retried with increasing delays.
+
+**Note for VPN/Tailscale Users:** If you're experiencing `ENETUNREACH` errors with IPv6 addresses, set `preferIPv4: true` in your retry configuration to resolve DNS to IPv4 addresses only.
 
 ### Tool Registry API
 

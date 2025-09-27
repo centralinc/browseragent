@@ -1,6 +1,9 @@
 import { Anthropic } from "@anthropic-ai/sdk";
 import { DateTime } from "luxon";
 import type { Page } from "playwright";
+import { Agent as HttpAgent } from "http";
+import { Agent as HttpsAgent } from "https";
+import { lookup } from "dns";
 import type { BetaMessageParam, BetaTextBlock } from "./types/beta";
 import {
   ToolCollection,
@@ -169,7 +172,31 @@ ${capabilityDocs}`,
     // More aggressive image filtering for long-running tasks
     let imageTruncationThreshold = onlyNMostRecentImages || 20; // Default to keeping only 20 most recent images
 
-    const client = new Anthropic({ apiKey, maxRetries: 4 });
+    // Create Anthropic client with IPv4 DNS resolution if configured
+    const clientOptions: {
+      apiKey: string;
+      maxRetries: number;
+      httpAgent?: HttpAgent;
+      httpsAgent?: HttpsAgent;
+    } = { apiKey, maxRetries: 4 };
+    
+    if (retryConfig?.preferIPv4) {
+      // Create HTTP agents that force IPv4 DNS resolution
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const ipv4Lookup = (hostname: string, options: any, callback?: any): void => {
+        if (typeof options === 'function') {
+          return lookup(hostname, { family: 4 }, options);
+        }
+        if (callback) {
+          return lookup(hostname, { ...options, family: 4 }, callback);
+        }
+      };
+      
+      clientOptions.httpAgent = new HttpAgent({ lookup: ipv4Lookup });
+      clientOptions.httpsAgent = new HttpsAgent({ lookup: ipv4Lookup });
+    }
+    
+    const client = new Anthropic(clientOptions);
     const enablePromptCaching = true;
 
     if (enablePromptCaching) {
@@ -213,6 +240,7 @@ ${capabilityDocs}`,
       retryConfig,
       logger
     );
+
 
     const responseParams = responseToParams(response);
 
