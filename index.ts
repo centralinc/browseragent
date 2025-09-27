@@ -48,3 +48,6 @@ export type { PlaywrightActionParams } from "./tools/playwright";
 // Export logger types and implementations
 export type { Logger } from "./utils/logger";
 export { SimpleLogger, NoOpLogger } from "./utils/logger";
+
+// Export retry configuration
+export type { RetryConfig } from "./utils/retry";

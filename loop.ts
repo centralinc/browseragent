@@ -19,6 +19,7 @@ import {
 import { makeApiToolResult } from "./utils/tool-results";
 import type { Logger } from "./utils/logger";
 import { NoOpLogger } from "./utils/logger";
+import { withRetry, type RetryConfig } from "./utils/retry";
 import { ComputerTool20241022, ComputerTool20250124 } from "./tools/computer";
 import { PlaywrightTool } from "./tools/playwright";
 import { Action } from "./tools/types/computer";
@@ -81,6 +82,7 @@ export async function samplingLoop({
   playwrightCapabilities = [],
   tools = [],
   logger = new NoOpLogger(),
+  retryConfig,
 }: {
   model: string;
   systemPromptSuffix?: string;
@@ -97,6 +99,7 @@ export async function samplingLoop({
   playwrightCapabilities?: PlaywrightCapabilityDef[];
   tools?: ComputerUseTool[];
   logger?: Logger;
+  retryConfig?: RetryConfig;
 }): Promise<BetaMessageParam[]> {
   const selectedVersion = toolVersion || DEFAULT_TOOL_VERSION;
   const toolGroup = TOOL_GROUPS_BY_VERSION[selectedVersion];
@@ -197,15 +200,19 @@ ${capabilityDocs}`,
 
     const toolParams = toolCollection.toParams();
 
-    const response = await client.beta.messages.create({
-      max_tokens: maxTokens,
-      messages,
-      model,
-      system: [system],
-      tools: toolParams,
-      betas,
-      ...extraBody,
-    });
+    const response = await withRetry(
+      () => client.beta.messages.create({
+        max_tokens: maxTokens,
+        messages,
+        model,
+        system: [system],
+        tools: toolParams,
+        betas,
+        ...extraBody,
+      }),
+      retryConfig,
+      logger
+    );
 
     const responseParams = responseToParams(response);
 
@@ -357,6 +364,7 @@ export async function computerUseLoop({
   playwrightCapabilities = [],
   tools = [],
   logger = new NoOpLogger(),
+  retryConfig,
 }: {
   query: string;
   apiKey: string;
@@ -373,6 +381,7 @@ export async function computerUseLoop({
   playwrightCapabilities?: PlaywrightCapabilityDef[];
   tools?: ComputerUseTool[];
   logger?: Logger;
+  retryConfig?: RetryConfig;
 }): Promise<BetaMessageParam[]> {
   const startTime = Date.now();
   const samplingParams = {
@@ -396,6 +405,7 @@ export async function computerUseLoop({
     playwrightCapabilities,
     tools,
     logger,
+    ...(retryConfig && { retryConfig }),
   };
   const messages = await samplingLoop(samplingParams);
   const elapsed = ((Date.now() - startTime) / 1000).toFixed(2);

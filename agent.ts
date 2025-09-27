@@ -9,6 +9,7 @@ import type { PlaywrightCapabilityDef } from "./tools/playwright-capabilities";
 import type { ComputerUseTool } from "./tools/types/base";
 import type { Logger } from "./utils/logger";
 import { NoOpLogger } from "./utils/logger";
+import type { RetryConfig } from "./utils/retry";
 
 /**
  * Event callback interfaces for agent controller
@@ -92,6 +93,7 @@ export class ComputerUseAgent {
   private playwrightCapabilities: PlaywrightCapabilityDef[];
   private tools: ComputerUseTool[];
   private logger: Logger;
+  private retryConfig?: RetryConfig;
 
   /** Expose control-flow signals */
   public readonly controller: AgentController;
@@ -117,6 +119,7 @@ export class ComputerUseAgent {
     playwrightCapabilities = [],
     tools = [],
     logger,
+    retryConfig,
   }: {
     /** Anthropic API key for authentication */
     apiKey: string;
@@ -147,6 +150,11 @@ export class ComputerUseAgent {
      * @default NoOpLogger (no logging)
      */
     logger?: Logger;
+    /**
+     * Retry configuration for API calls
+     * Controls retry behavior for connection errors
+     */
+    retryConfig?: RetryConfig;
   }) {
     this.apiKey = apiKey;
     this.model = model;
@@ -155,6 +163,7 @@ export class ComputerUseAgent {
     this.playwrightCapabilities = playwrightCapabilities;
     this.tools = tools;
     this.logger = logger ?? new NoOpLogger();
+    this.retryConfig = retryConfig;
 
     // NEW: create the signal bus + controller up-front so callers can pause *during* first run
     this.signalBus = new SignalBus();
@@ -285,6 +294,7 @@ Respond ONLY with the JSON object, no additional text.`;
         playwrightCapabilities: this.playwrightCapabilities,
         tools: this.tools,
         logger: this.logger, // Pass logger to the loop
+        ...(this.retryConfig && { retryConfig: this.retryConfig }),
       };
       const messages = await computerUseLoop(loopParams);
 
