@@ -93,7 +93,7 @@ export class ComputerUseAgent {
   private playwrightCapabilities: PlaywrightCapabilityDef[];
   private tools: ComputerUseTool[];
   private logger: Logger;
-  private retryConfig?: RetryConfig;
+  private retryConfig: RetryConfig | undefined;
 
   /** Expose control-flow signals */
   public readonly controller: AgentController;
