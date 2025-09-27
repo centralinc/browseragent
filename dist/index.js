@@ -1069,6 +1069,59 @@ var NoOpLogger = class {
   }
 };
 
+// utils/retry.ts
+var DEFAULT_RETRY_CONFIG = {
+  maxRetries: 3,
+  initialDelayMs: 1e3,
+  maxDelayMs: 3e4,
+  backoffMultiplier: 2,
+  retryableErrors: [
+    "Connection error",
+    "ECONNREFUSED",
+    "ETIMEDOUT",
+    "ECONNRESET",
+    "ENOTFOUND",
+    "ENETUNREACH",
+    "EAI_AGAIN",
+    "socket hang up",
+    "read ECONNRESET"
+  ]
+};
+function isRetryableError(error, retryableErrors) {
+  if (!error || typeof error !== "object") return false;
+  const errorMessage = error.message || "";
+  const errorStack = error.stack || "";
+  return retryableErrors.some(
+    (retryableError) => errorMessage.includes(retryableError) || errorStack.includes(retryableError)
+  );
+}
+async function withRetry(fn, config, logger) {
+  const finalConfig = { ...DEFAULT_RETRY_CONFIG, ...config };
+  let lastError;
+  for (let attempt = 0; attempt <= finalConfig.maxRetries; attempt++) {
+    try {
+      return await fn();
+    } catch (error) {
+      lastError = error;
+      if (attempt < finalConfig.maxRetries && isRetryableError(error, finalConfig.retryableErrors)) {
+        const delay = Math.min(
+          finalConfig.initialDelayMs * Math.pow(finalConfig.backoffMultiplier, attempt),
+          finalConfig.maxDelayMs
+        );
+        logger == null ? void 0 : logger.debug(`Retry attempt ${attempt + 1}/${finalConfig.maxRetries} after ${delay}ms`, {
+          error: error instanceof Error ? error.message : String(error),
+          attempt: attempt + 1,
+          delay
+        });
+        await new Promise((resolve) => setTimeout(resolve, delay));
+      } else {
+        throw error;
+      }
+    }
+  }
+  throw lastError;
+}
+
 // tools/playwright-capabilities.ts
 var import_zod = require("zod");
 var PLAYWRIGHT_CAPABILITIES = /* @__PURE__ */ new Map();
@@ -1378,7 +1431,8 @@ async function samplingLoop({
   executionConfig,
   playwrightCapabilities = [],
   tools = [],
-  logger = new NoOpLogger()
+  logger = new NoOpLogger(),
+  retryConfig
 }) {
   const selectedVersion = toolVersion || DEFAULT_TOOL_VERSION;
   const toolGroup = TOOL_GROUPS_BY_VERSION[selectedVersion];
@@ -1445,15 +1499,19 @@ ${capabilityDocs}`
       extraBody.thinking = { type: "enabled", budget_tokens: thinkingBudget };
     }
     const toolParams = toolCollection.toParams();
-    const response = await client.beta.messages.create({
-      max_tokens: maxTokens,
-      messages,
-      model,
-      system: [system],
-      tools: toolParams,
-      betas,
-      ...extraBody
-    });
+    const response = await withRetry(
+      () => client.beta.messages.create({
+        max_tokens: maxTokens,
+        messages,
+        model,
+        system: [system],
+        tools: toolParams,
+        betas,
+        ...extraBody
+      }),
+      retryConfig,
+      logger
+    );
     const responseParams = responseToParams(response);
     const loggableContent = responseParams.map((block) => {
       if (block.type === "tool_use") {
@@ -1547,7 +1605,8 @@ async function computerUseLoop({
   executionConfig,
   playwrightCapabilities = [],
   tools = [],
-  logger = new NoOpLogger()
+  logger = new NoOpLogger(),
+  retryConfig
 }) {
   const startTime = Date.now();
   const samplingParams = {
@@ -1570,7 +1629,8 @@ async function computerUseLoop({
     ...executionConfig && { executionConfig },
     playwrightCapabilities,
     tools,
-    logger
+    logger,
+    ...retryConfig && { retryConfig }
   };
   const messages = await samplingLoop(samplingParams);
   const elapsed = ((Date.now() - startTime) / 1e3).toFixed(2);
@@ -1767,7 +1827,8 @@ var ComputerUseAgent = class {
     executionConfig,
     playwrightCapabilities = [],
     tools = [],
-    logger
+    logger,
+    retryConfig
   }) {
     this.apiKey = apiKey;
     this.model = model;
@@ -1776,6 +1837,7 @@ var ComputerUseAgent = class {
     this.playwrightCapabilities = playwrightCapabilities;
     this.tools = tools;
     this.logger = logger ?? new NoOpLogger();
+    this.retryConfig = retryConfig;
     this.signalBus = new SignalBus();
     this.controller = new AgentControllerImpl(this.signalBus);
     this.controller.on("onPause", (data) => {
@@ -1864,8 +1926,9 @@ Respond ONLY with the JSON object, no additional text.`;
         },
         playwrightCapabilities: this.playwrightCapabilities,
         tools: this.tools,
-        logger: this.logger
+        logger: this.logger,
         // Pass logger to the loop
+        ...this.retryConfig && { retryConfig: this.retryConfig }
       };
       const messages = await computerUseLoop(loopParams);
       const lastMessage = messages[messages.length - 1];
