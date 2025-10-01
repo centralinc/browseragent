@@ -1553,6 +1553,23 @@ ${capabilityDocs}`
       content: responseParams
     });
     if (response.stop_reason === "end_turn") {
+      if (signalBus) {
+        if (signalBus.isCancelling()) {
+          console.log("Agent execution was cancelled");
+          return messages;
+        }
+        if (signalBus.getState() === "paused") {
+          console.log("Agent is paused, waiting for resume before ending");
+          await signalBus.waitUntilResumed();
+          if (signalBus.isCancelling()) {
+            console.log("Agent execution was cancelled during pause");
+            return messages;
+          }
+          console.log("Agent resumed, continuing execution");
+          stepIndex++;
+          continue;
+        }
+      }
       console.log("LLM has completed its task, ending loop");
       return messages;
     }
