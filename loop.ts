@@ -286,10 +286,8 @@ ${capabilityDocs}`,
             console.log("Agent execution was cancelled during pause");
             return messages;
           }
-          // After resume, continue the loop instead of ending
-          console.log("Agent resumed, continuing execution");
-          stepIndex++;
-          continue;
+          // After resume, task is complete - just end normally
+          console.log("Agent resumed, task was already complete");
         }
       }
       
