@@ -1565,9 +1565,7 @@ ${capabilityDocs}`
             console.log("Agent execution was cancelled during pause");
             return messages;
           }
-          console.log("Agent resumed, continuing execution");
-          stepIndex++;
-          continue;
+          console.log("Agent resumed, task was already complete");
         }
       }
       console.log("LLM has completed its task, ending loop");
