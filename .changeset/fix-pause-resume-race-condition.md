@@ -1,5 +1,5 @@
 ---
-"browseragent": patch
+"@centralinc/browseragent": patch
 ---
 
 Fix pause/resume race condition in agent execution loop
