@@ -4,7 +4,7 @@ import type { Page } from "playwright";
 import { computerUseLoop } from "./loop";
 import { SignalBus, type SignalEventPayloadMap } from "./signals/bus";
 import type { ControlSignal, SignalEvent } from "./signals/bus";
-import type { ExecutionConfig } from "./tools/types/base";
+import type { ExecutionConfig, ToolExecutionContext } from "./tools/types/base";
 import type { PlaywrightCapabilityDef } from "./tools/playwright-capabilities";
 import type { ComputerUseTool } from "./tools/types/base";
 import type { Logger } from "./utils/logger";
@@ -241,6 +241,11 @@ export class ComputerUseAgent {
        * @default undefined (no limit)
        */
       onlyNMostRecentImages?: number;
+      /**
+       * Runtime context passed to tools during execution
+       * @default undefined
+       */
+      toolExecutionContext?: ToolExecutionContext;
     }
   ): Promise<T> {
     const startTime = Date.now();
@@ -250,6 +255,7 @@ export class ComputerUseAgent {
       thinkingBudget,
       maxTokens,
       onlyNMostRecentImages,
+      toolExecutionContext,
     } = options ?? {};
 
     // Log agent start
@@ -293,8 +299,9 @@ Respond ONLY with the JSON object, no additional text.`;
           }),
         playwrightCapabilities: this.playwrightCapabilities,
         tools: this.tools,
-        logger: this.logger, // Pass logger to the loop
+        logger: this.logger,
         ...(this.retryConfig && { retryConfig: this.retryConfig }),
+        ...(toolExecutionContext && { toolExecutionContext }),
       };
       const messages = await computerUseLoop(loopParams);
 

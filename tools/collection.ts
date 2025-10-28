@@ -6,6 +6,7 @@ import type {
   ComputerUseTool,
   ComputerUseToolDef,
   ToolResult,
+  ToolExecutionContext,
 } from "./types/base";
 import type { Page } from "playwright";
 
@@ -49,6 +50,7 @@ export const TOOL_GROUPS_BY_VERSION: Record<ToolVersion, ToolGroup> =
 export class ToolCollection {
   private tools: Map<string, ComputerUseTool>;
   private page?: Page;
+  private context?: ToolExecutionContext;
 
   constructor(...tools: ComputerUseTool[]) {
     this.tools = new Map(tools.map((tool) => [tool.name, tool]));
@@ -60,6 +62,10 @@ export class ToolCollection {
 
   setPage(page: Page): void {
     this.page = page;
+  }
+
+  setContext(context: ToolExecutionContext): void {
+    this.context = context;
   }
 
   async run(
@@ -80,6 +86,12 @@ export class ToolCollection {
       toolCallParams._page = this.page;
     }
 
+    // Create execution context
+    const ctx: ToolExecutionContext = {
+      ...(this.page && { page: this.page }),
+      ...this.context,
+    };
+
     // Get tool definition to determine type
     const toolDef = tool.toParams();
 
@@ -92,10 +104,10 @@ export class ToolCollection {
           `Invalid input for playwright tool: method and args are required`,
         );
       }
-      return await tool.call(toolCallParams);
+      return await tool.call(toolCallParams, ctx);
     } else if ("type" in toolDef && toolDef.type === "custom") {
       // This is a custom function tool - no action validation needed
-      return await tool.call(toolCallParams);
+      return await tool.call(toolCallParams, ctx);
     } else {
       // This is a computer tool - validate action parameter
       const computerInput = toolInput as ActionParams;
@@ -107,7 +119,7 @@ export class ToolCollection {
           `Invalid action ${computerInput.action} for tool ${name}`,
         );
       }
-      return await tool.call(toolCallParams);
+      return await tool.call(toolCallParams, ctx);
     }
   }
 }

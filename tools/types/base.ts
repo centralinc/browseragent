@@ -35,11 +35,19 @@ export type ComputerToolDef =
 // Union type for all possible tool definitions
 export type ComputerUseToolDef = ComputerToolDef | FunctionToolDef;
 
+/**
+ * Runtime context passed to tools during execution
+ */
+export interface ToolExecutionContext {
+  page?: import("playwright").Page;
+  [key: string]: unknown;
+}
+
 // Simple base interface for all tools
 export interface ComputerUseTool {
   name: string;
   toParams(): ComputerUseToolDef;
-  call(params: Record<string, unknown>): Promise<ToolResult>;
+  call(params: Record<string, unknown>, context?: ToolExecutionContext): Promise<ToolResult>;
 }
 
 /**

@@ -5,6 +5,7 @@ import {
   type ComputerUseTool,
   type FunctionToolDef,
   type ActionParams,
+  type ToolExecutionContext,
 } from "./types/base";
 import {
   PLAYWRIGHT_CAPABILITIES,
@@ -79,7 +80,7 @@ export class PlaywrightTool implements ComputerUseTool {
     };
   }
 
-  async call(params: PlaywrightActionParams): Promise<ToolResult> {
+  async call(params: PlaywrightActionParams, _context?: ToolExecutionContext): Promise<ToolResult> {
     const { method, args } = params as PlaywrightActionParams;
 
     const capability = this.capabilities.get(method);
