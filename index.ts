@@ -14,6 +14,7 @@ export type {
   ScrollingConfig,
   ComputerUseTool,
   ComputerUseToolDef,
+  ToolExecutionContext,
 } from "./tools/types/base";
 export type {
   AgentController,

@@ -9,6 +9,7 @@ import {
   type ComputerUseTool,
   type ComputerToolDef,
   type ExecutionConfig,
+  type ToolExecutionContext,
   DEFAULT_EXECUTION_CONFIG,
   type TypingConfig,
   type ScreenshotConfig,
@@ -211,7 +212,7 @@ export class ComputerTool implements ComputerUseTool {
     }
   }
 
-  async call(params: ActionParams): Promise<ToolResult> {
+  async call(params: ActionParams, _context?: ToolExecutionContext): Promise<ToolResult> {
     const {
       action,
       text,

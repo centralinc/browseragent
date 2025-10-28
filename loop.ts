@@ -26,7 +26,7 @@ import { withRetry, type RetryConfig } from "./utils/retry";
 import { ComputerTool20241022, ComputerTool20250124 } from "./tools/computer";
 import { PlaywrightTool } from "./tools/playwright";
 import { Action } from "./tools/types/computer";
-import type { ExecutionConfig } from "./tools/types/base";
+import type { ExecutionConfig, ToolExecutionContext } from "./tools/types/base";
 import type { PlaywrightCapabilityDef } from "./tools/playwright-capabilities";
 import type { ComputerUseTool } from "./tools/types/base";
 
@@ -86,6 +86,7 @@ export async function samplingLoop({
   tools = [],
   logger = new NoOpLogger(),
   retryConfig,
+  toolExecutionContext,
 }: {
   model: string;
   systemPromptSuffix?: string;
@@ -103,6 +104,7 @@ export async function samplingLoop({
   tools?: ComputerUseTool[];
   logger?: Logger;
   retryConfig?: RetryConfig;
+  toolExecutionContext?: ToolExecutionContext;
 }): Promise<BetaMessageParam[]> {
   const selectedVersion = toolVersion || DEFAULT_TOOL_VERSION;
   const toolGroup = TOOL_GROUPS_BY_VERSION[selectedVersion];
@@ -128,6 +130,11 @@ export async function samplingLoop({
 
   // Provide Page access to browser-aware tools
   toolCollection.setPage(playwrightPage);
+
+  // Set execution context if provided
+  if (toolExecutionContext) {
+    toolCollection.setContext(toolExecutionContext);
+  }
 
   // Generate system prompt with instance-specific capabilities
   const capabilityDocs =
@@ -413,6 +420,7 @@ export async function computerUseLoop({
   tools = [],
   logger = new NoOpLogger(),
   retryConfig,
+  toolExecutionContext,
 }: {
   query: string;
   apiKey: string;
@@ -430,6 +438,7 @@ export async function computerUseLoop({
   tools?: ComputerUseTool[];
   logger?: Logger;
   retryConfig?: RetryConfig;
+  toolExecutionContext?: ToolExecutionContext;
 }): Promise<BetaMessageParam[]> {
   const startTime = Date.now();
   const samplingParams = {
@@ -454,6 +463,7 @@ export async function computerUseLoop({
     tools,
     logger,
     ...(retryConfig && { retryConfig }),
+    ...(toolExecutionContext && { toolExecutionContext }),
   };
   const messages = await samplingLoop(samplingParams);
   const elapsed = ((Date.now() - startTime) / 1000).toFixed(2);
