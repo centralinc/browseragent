@@ -564,7 +564,7 @@ var ComputerTool = class {
       throw new ToolError(`Failed to take screenshot: ${error}`);
     }
   }
-  async call(params) {
+  async call(params, _context) {
     const {
       action,
       text,
@@ -720,6 +720,9 @@ var ToolCollection = class {
   setPage(page) {
     this.page = page;
   }
+  setContext(context) {
+    this.context = context;
+  }
   async run(name, toolInput) {
     const tool = this.tools.get(name);
     if (!tool) {
@@ -732,6 +735,10 @@ var ToolCollection = class {
     if (this.page) {
       toolCallParams._page = this.page;
     }
+    const ctx = {
+      ...this.page && { page: this.page },
+      ...this.context
+    };
     const toolDef = tool.toParams();
     if (name === "playwright") {
       const playwrightInput = toolInput;
@@ -740,9 +747,9 @@ var ToolCollection = class {
           `Invalid input for playwright tool: method and args are required`
         );
       }
-      return await tool.call(toolCallParams);
+      return await tool.call(toolCallParams, ctx);
     } else if ("type" in toolDef && toolDef.type === "custom") {
-      return await tool.call(toolCallParams);
+      return await tool.call(toolCallParams, ctx);
     } else {
       const computerInput = toolInput;
       if (!computerInput.action || !Object.values(Action).includes(computerInput.action)) {
@@ -750,7 +757,7 @@ var ToolCollection = class {
           `Invalid action ${computerInput.action} for tool ${name}`
         );
       }
-      return await tool.call(toolCallParams);
+      return await tool.call(toolCallParams, ctx);
     }
   }
 };
@@ -1375,7 +1382,7 @@ var PlaywrightTool = class {
       }
     };
   }
-  async call(params) {
+  async call(params, _context) {
     const { method, args } = params;
     const capability2 = this.capabilities.get(method);
     if (!capability2) {
@@ -1436,7 +1443,8 @@ async function samplingLoop({
   playwrightCapabilities = [],
   tools = [],
   logger = new NoOpLogger(),
-  retryConfig
+  retryConfig,
+  toolExecutionContext
 }) {
   const selectedVersion = toolVersion || DEFAULT_TOOL_VERSION;
   const toolGroup = TOOL_GROUPS_BY_VERSION[selectedVersion];
@@ -1453,6 +1461,9 @@ async function samplingLoop({
     ...tools
   );
   toolCollection.setPage(playwrightPage);
+  if (toolExecutionContext) {
+    toolCollection.setContext(toolExecutionContext);
+  }
   const capabilityDocs = playwrightCapabilities.length > 0 ? playwrightTool.getCapabilityDocs() : PlaywrightTool.getCapabilityDocs();
   const system = {
     type: "text",
@@ -1638,7 +1649,8 @@ async function computerUseLoop({
   playwrightCapabilities = [],
   tools = [],
   logger = new NoOpLogger(),
-  retryConfig
+  retryConfig,
+  toolExecutionContext
 }) {
   const startTime = Date.now();
   const samplingParams = {
@@ -1662,7 +1674,8 @@ async function computerUseLoop({
     playwrightCapabilities,
     tools,
     logger,
-    ...retryConfig && { retryConfig }
+    ...retryConfig && { retryConfig },
+    ...toolExecutionContext && { toolExecutionContext }
   };
   const messages = await samplingLoop(samplingParams);
   const elapsed = ((Date.now() - startTime) / 1e3).toFixed(2);
@@ -1921,7 +1934,8 @@ var ComputerUseAgent = class {
       systemPromptSuffix,
       thinkingBudget,
       maxTokens,
-      onlyNMostRecentImages
+      onlyNMostRecentImages,
+      toolExecutionContext
     } = options ?? {};
     this.logger.agentStart(query, this.model, {
       systemPromptSuffix,
@@ -1959,8 +1973,8 @@ Respond ONLY with the JSON object, no additional text.`;
         playwrightCapabilities: this.playwrightCapabilities,
         tools: this.tools,
         logger: this.logger,
-        // Pass logger to the loop
-        ...this.retryConfig && { retryConfig: this.retryConfig }
+        ...this.retryConfig && { retryConfig: this.retryConfig },
+        ...toolExecutionContext && { toolExecutionContext }
       };
       const messages = await computerUseLoop(loopParams);
       const lastMessage = messages[messages.length - 1];
