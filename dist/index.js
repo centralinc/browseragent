@@ -267,6 +267,36 @@ var KeyboardUtils = class {
     }
     return key;
   }
+  static parseKeySequence(sequence) {
+    if (!sequence) {
+      throw new Error("Key sequence cannot be empty");
+    }
+    const keys = [];
+    const parts = sequence.trim().split(/\s+/);
+    for (const part of parts) {
+      const trimmedPart = part.trim();
+      if (!trimmedPart) continue;
+      const repeatMatch = trimmedPart.match(/^(.+?)\*(\d+)$/);
+      if (repeatMatch && repeatMatch[1] && repeatMatch[2]) {
+        const key = repeatMatch[1];
+        const count = parseInt(repeatMatch[2], 10);
+        if (count < 1 || count > 100) {
+          throw new Error(
+            `Invalid repetition count ${count}. Must be between 1 and 100`
+          );
+        }
+        for (let i = 0; i < count; i++) {
+          keys.push(this.getPlaywrightKey(key));
+        }
+      } else {
+        keys.push(this.getPlaywrightKey(trimmedPart));
+      }
+    }
+    if (keys.length === 0) {
+      throw new Error("Key sequence resulted in no valid keys");
+    }
+    return keys;
+  }
   static parseKeyCombination(combo) {
     if (!combo) {
       throw new Error("Key combination cannot be empty");
@@ -280,14 +310,12 @@ var KeyboardUtils = class {
     });
   }
 };
-// Only map alternative names to standard Playwright modifier keys
 KeyboardUtils.modifierKeyMap = {
   ctrl: "Control",
   alt: "Alt",
   command: "Meta",
   win: "Meta"
 };
-// Essential key mappings for Playwright compatibility
 KeyboardUtils.keyMap = {
   return: "Enter",
   space: " ",
@@ -513,12 +541,19 @@ var ComputerTool = class {
       await new Promise((resolve) => setTimeout(resolve, duration * 1e3));
       await this.page.keyboard.up(key);
     } else if (action === "key" /* KEY */) {
-      const keys = KeyboardUtils.parseKeyCombination(text);
-      for (const key of keys) {
-        await this.page.keyboard.down(key);
-      }
-      for (const key of keys.reverse()) {
-        await this.page.keyboard.up(key);
+      if (text.includes(" ") && !text.includes("+")) {
+        const keys = KeyboardUtils.parseKeySequence(text);
+        for (const key of keys) {
+          await this.page.keyboard.press(key);
+        }
+      } else {
+        const keys = KeyboardUtils.parseKeyCombination(text);
+        for (const key of keys) {
+          await this.page.keyboard.down(key);
+        }
+        for (const key of keys.reverse()) {
+          await this.page.keyboard.up(key);
+        }
       }
     } else {
       const typingConfig = this.config.typing;
