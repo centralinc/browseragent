@@ -1,4 +1,4 @@
-import { KeyboardUtils } from "./keyboard";
+import { KeyboardUtils } from "../../tools/utils/keyboard";
 
 console.log("Testing KeyboardUtils...\n");
 
@@ -67,6 +67,8 @@ try {
   console.log("   'down' ->", KeyboardUtils.getPlaywrightKey("down"));
   console.log("   'Down' ->", KeyboardUtils.getPlaywrightKey("Down"));
   console.log("   'ctrl' ->", KeyboardUtils.getPlaywrightKey("ctrl"));
+  console.log("   'shift' ->", KeyboardUtils.getPlaywrightKey("shift"));
+  console.log("   'Shift' ->", KeyboardUtils.getPlaywrightKey("Shift"));
   console.log("   'return' ->", KeyboardUtils.getPlaywrightKey("return"));
   console.log("   'a' ->", KeyboardUtils.getPlaywrightKey("a"));
   console.log("   'A' ->", KeyboardUtils.getPlaywrightKey("A"));
@@ -97,6 +99,21 @@ try {
   console.log("   Input: 'Enter'");
   console.log("   Output:", result10);
   console.log("   ✅ Expected: ['Enter']");
+} catch (error) {
+  console.error("   ❌ Error:", error);
+}
+
+console.log("\n11. Testing Shift modifier mapping (bug fix):");
+try {
+  const result11 = KeyboardUtils.parseKeyCombination("shift+a");
+  console.log("   Input: 'shift+a'");
+  console.log("   Output:", result11);
+  console.log("   ✅ Expected: ['Shift', 'a'] (not 'shift')");
+  if (result11[0] === "Shift") {
+    console.log("   ✅ Correctly maps 'shift' to 'Shift'");
+  } else {
+    console.log("   ❌ Failed to map 'shift' to 'Shift':", result11[0]);
+  }
 } catch (error) {
   console.error("   ❌ Error:", error);
 }

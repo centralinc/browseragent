@@ -4,12 +4,13 @@
 
 Add support for space-separated keyboard sequences and repetition syntax
 
-Fixes keyboard action handling to support space-separated key sequences like "Down Down Down" which previously failed with Playwright errors. The agent can now handle repeated key presses naturally.
+Fixes keyboard action handling to support space-separated key sequences like "Down Down Down" and adds missing "shift" modifier mapping which caused "Unknown key: shift" errors in production.
 
 **Changes:**
 - Added `parseKeySequence()` method to handle space-separated keys
 - Support for repetition syntax (e.g., `Down*3` = press Down 3 times)
 - Automatic detection between key sequences (space-separated) and combinations (plus-separated)
+- Fixed missing "shift" modifier mapping (now correctly maps to "Shift")
 - Enhanced error messages for invalid sequences
 
 **Examples:**
