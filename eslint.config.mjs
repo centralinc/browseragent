@@ -5,7 +5,12 @@ import prettierConfig from "eslint-config-prettier";
 
 export default [
   {
-    ignores: ["**/dist/", "**/examples/", "**/test-published-package/"],
+    ignores: [
+      "**/dist/",
+      "**/examples/",
+      "**/tests/",
+      "**/test-published-package/",
+    ],
   },
   eslint.configs.recommended,
   {

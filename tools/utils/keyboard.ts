@@ -1,5 +1,4 @@
 export class KeyboardUtils {
-  // Only map alternative names to standard Playwright modifier keys
   private static readonly modifierKeyMap: Record<string, string> = {
     ctrl: "Control",
     alt: "Alt",
@@ -7,7 +6,6 @@ export class KeyboardUtils {
     win: "Meta",
   };
 
-  // Essential key mappings for Playwright compatibility
   private static readonly keyMap: Record<string, string> = {
     return: "Enter",
     space: " ",
@@ -53,18 +51,51 @@ export class KeyboardUtils {
 
     const normalizedKey = key.toLowerCase();
 
-    // Handle special cases
     if (normalizedKey in this.keyMap) {
       return this.keyMap[normalizedKey] as string;
     }
 
-    // Normalize modifier keys
     if (normalizedKey in this.modifierKeyMap) {
       return this.modifierKeyMap[normalizedKey] as string;
     }
 
-    // Return the key as is - Playwright handles standard key names
     return key;
+  }
+
+  static parseKeySequence(sequence: string): string[] {
+    if (!sequence) {
+      throw new Error("Key sequence cannot be empty");
+    }
+
+    const keys: string[] = [];
+    const parts = sequence.trim().split(/\s+/);
+
+    for (const part of parts) {
+      const trimmedPart = part.trim();
+      if (!trimmedPart) continue;
+
+      const repeatMatch = trimmedPart.match(/^(.+?)\*(\d+)$/);
+      if (repeatMatch && repeatMatch[1] && repeatMatch[2]) {
+        const key = repeatMatch[1];
+        const count = parseInt(repeatMatch[2], 10);
+        if (count < 1 || count > 100) {
+          throw new Error(
+            `Invalid repetition count ${count}. Must be between 1 and 100`,
+          );
+        }
+        for (let i = 0; i < count; i++) {
+          keys.push(this.getPlaywrightKey(key));
+        }
+      } else {
+        keys.push(this.getPlaywrightKey(trimmedPart));
+      }
+    }
+
+    if (keys.length === 0) {
+      throw new Error("Key sequence resulted in no valid keys");
+    }
+
+    return keys;
   }
 
   static parseKeyCombination(combo: string): string[] {

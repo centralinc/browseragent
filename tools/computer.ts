@@ -151,41 +151,41 @@ export class ComputerTool implements ComputerUseTool {
       await new Promise((resolve) => setTimeout(resolve, duration! * 1000));
       await this.page.keyboard.up(key);
     } else if (action === Action.KEY) {
-      const keys = KeyboardUtils.parseKeyCombination(text);
-      for (const key of keys) {
-        await this.page.keyboard.down(key);
-      }
-      for (const key of keys.reverse()) {
-        await this.page.keyboard.up(key);
+      if (text.includes(" ") && !text.includes("+")) {
+        const keys = KeyboardUtils.parseKeySequence(text);
+        for (const key of keys) {
+          await this.page.keyboard.press(key);
+        }
+      } else {
+        const keys = KeyboardUtils.parseKeyCombination(text);
+        for (const key of keys) {
+          await this.page.keyboard.down(key);
+        }
+        for (const key of keys.reverse()) {
+          await this.page.keyboard.up(key);
+        }
       }
     } else {
-      // Handle configurable typing behavior
       const typingConfig = this.config.typing!;
 
       if (typingConfig.mode === "fill") {
-        // Use locator.fill() for maximum performance - bypasses keyboard events entirely
-        // This directly sets the input value without simulating keystrokes
         try {
           const focusedElement = await this.page.locator(":focus").first();
           if ((await focusedElement.count()) > 0) {
             await focusedElement.fill(text);
           } else {
-            // Fallback to keyboard.type if no focused element
             await this.page.keyboard.type(text, { delay: 0 });
           }
         } catch {
-          // Fallback to keyboard.type if fill() fails
           await this.page.keyboard.type(text, { delay: 0 });
         }
       } else {
-        // Type character by character with configurable delay
         await this.page.keyboard.type(text, {
           delay: typingConfig.characterDelay || 12,
         });
       }
     }
 
-    // Wait for completion using configurable delay
     const completionDelay = this.config.typing?.completionDelay || 100;
     await this.page.waitForTimeout(completionDelay);
     return await this.screenshot();
