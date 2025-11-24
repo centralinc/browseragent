@@ -2,6 +2,7 @@ export class KeyboardUtils {
   private static readonly modifierKeyMap: Record<string, string> = {
     ctrl: "Control",
     alt: "Alt",
+    shift: "Shift",
     command: "Meta",
     win: "Meta",
   };
