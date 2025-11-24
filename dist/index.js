@@ -313,6 +313,7 @@ var KeyboardUtils = class {
 KeyboardUtils.modifierKeyMap = {
   ctrl: "Control",
   alt: "Alt",
+  shift: "Shift",
   command: "Meta",
   win: "Meta"
 };
