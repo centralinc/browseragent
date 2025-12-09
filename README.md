@@ -10,14 +10,15 @@ Our goal is to expose a **highly configurable, fine-grained agent**—dial it up
 
 > **At-a-glance feature matrix**
 >
-> | ⚙️ Capability       | What it does                                    | Why it rocks                                             |
-> | ------------------- | ----------------------------------------------- | -------------------------------------------------------- |
-> | **Tool Registry**   | Generic capability system for any tool          | Extend agents with Slack, Discord, databases, etc.       |
-> | **Smart Scrolling** | 90 % viewport scrolls + instant text navigation | Turbo page traversal **and** zero-waste dropdown control |
-> | **Typing Modes**    | Fill, fast-character, human-character           | Match CAPTCHA tolerances or burn through inputs          |
-> | **Signal Bus**      | Pause / Resume / Cancel at any step             | Add human QA checkpoints in production                   |
-> | **URL Extractor**   | Find links by visible text                      | Zero CSS selectors needed                                |
-> | **Speed Tweaks**    | Screenshot + delay optimisations                | Cut multi-step flows from minutes to seconds             |
+> | ⚙️ Capability        | What it does                                    | Why it rocks                                             |
+> | -------------------- | ----------------------------------------------- | -------------------------------------------------------- |
+> | **Tool Registry**    | Generic capability system for any tool          | Extend agents with Slack, Discord, databases, etc.       |
+> | **Smart Scrolling**  | 90 % viewport scrolls + instant text navigation | Turbo page traversal **and** zero-waste dropdown control |
+> | **Typing Modes**     | Fill, fast-character, human-character           | Match CAPTCHA tolerances or burn through inputs          |
+> | **Signal Bus**       | Pause / Resume / Cancel at any step             | Add human QA checkpoints in production                   |
+> | **URL Extractor**    | Find links by visible text                      | Zero CSS selectors needed                                |
+> | **Speed Tweaks**     | Screenshot + delay optimisations                | Cut multi-step flows from minutes to seconds             |
+> | **Browser Context**  | createPage() for custom tools                   | Spawn sub-agents, isolated tasks, shared sessions        |
 
 Below are the flagship improvements shipped in the fork:
 
@@ -355,6 +356,114 @@ await agent.execute('Get the titles of the top 10 stories');
 ```
 
 Great for debugging, watchdog timeouts, and manual overrides.
+
+---
+
+### 🌐 Browser Context Access for Custom Tools
+
+Custom tools can now spawn new pages and even **delegate tasks to sub-agents** while sharing the same browser session (cookies, proxies, anti-detection).
+
+#### How It Works
+
+The `ToolExecutionContext` now provides:
+
+- **`createPage()`** - Creates a new page with anti-detection scripts pre-applied
+- **`browserContext`** - Direct access to the Playwright `BrowserContext`
+
+```typescript
+import type { ComputerUseTool, ToolResult, ToolExecutionContext } from "@centralinc/browseragent";
+
+class ActivationLinkTool implements ComputerUseTool {
+  name = "click_activation_link";
+
+  async call(params: Record<string, unknown>, ctx?: ToolExecutionContext): Promise<ToolResult> {
+    if (!ctx?.createPage) {
+      return { error: "Browser context not available" };
+    }
+
+    const { url } = params as { url: string };
+    const page = await ctx.createPage();
+
+    try {
+      await page.goto(url, { waitUntil: "domcontentloaded" });
+      return { output: `Navigated to ${page.url()}` };
+    } finally {
+      await page.close();
+    }
+  }
+}
+```
+
+#### Sub-Agent Delegation Pattern
+
+The real power is **spawning a sub-agent** on a new page to perform isolated tasks:
+
+```typescript
+import { ComputerUseAgent } from "@centralinc/browseragent";
+import { z } from "zod";
+
+class DelegatedTaskTool implements ComputerUseTool {
+  name = "delegated_task";
+
+  async call(params: Record<string, unknown>, ctx?: ToolExecutionContext): Promise<ToolResult> {
+    if (!ctx?.createPage) {
+      return { error: "Browser context not available" };
+    }
+
+    const { task, url } = params as { task: string; url: string };
+    const page = await ctx.createPage();
+
+    try {
+      await page.goto(url);
+
+      // Create a sub-agent on the new page
+      const subAgent = new ComputerUseAgent({
+        apiKey: process.env.ANTHROPIC_API_KEY!,
+        page,
+      });
+
+      // Execute task and get structured result
+      const result = await subAgent.execute(
+        task,
+        z.object({ data: z.string(), success: z.boolean() })
+      );
+
+      return { output: JSON.stringify(result) };
+    } finally {
+      await page.close();
+    }
+  }
+}
+```
+
+**Use Cases:**
+
+- 📧 **Email verification** - Navigate to activation links, return success status
+- 🔐 **OAuth flows** - Handle OAuth in a separate page, return tokens
+- 📊 **Data scraping** - Scrape sites in isolation, return structured data
+- 🔄 **Multi-site workflows** - Agent A triggers sub-agent B to fetch data
+- ⚡ **Parallel operations** - Multiple sub-agents on different pages simultaneously
+
+#### Shared Init Scripts
+
+Apply the same anti-detection scripts to your initial page:
+
+```typescript
+import { applyInitScripts, ComputerUseAgent } from "@centralinc/browseragent";
+
+const page = await context.newPage();
+await applyInitScripts(page); // Same scripts used by createPage()
+await page.goto("https://example.com");
+
+const agent = new ComputerUseAgent({ apiKey, page });
+```
+
+**Key Benefits:**
+
+- Pages share cookies, storage, and session state
+- Proxy configuration inherited automatically
+- Anti-detection scripts applied consistently
+- Managed pages are cleaned up on errors
 
 ---
 
