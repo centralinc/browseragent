@@ -1909,16 +1909,21 @@ var ComputerUseAgent = class {
     playwrightCapabilities = [],
     tools = [],
     logger,
-    retryConfig
+    retryConfig,
+    initScripts = []
   }) {
+    this.managedPages = /* @__PURE__ */ new Set();
+    this.initScripts = [];
     this.apiKey = apiKey;
     this.model = model;
     this.page = page;
+    this.browserContext = page.context();
     this.executionConfig = executionConfig ?? {};
     this.playwrightCapabilities = playwrightCapabilities;
     this.tools = tools;
     this.logger = logger ?? new NoOpLogger();
     this.retryConfig = retryConfig;
+    this.initScripts = initScripts;
     this.signalBus = new SignalBus();
     this.controller = new AgentControllerImpl(this.signalBus);
     this.controller.on("onPause", (data) => {
@@ -1971,7 +1976,7 @@ var ComputerUseAgent = class {
       thinkingBudget,
       maxTokens,
       onlyNMostRecentImages,
-      toolExecutionContext
+      toolExecutionContext: userToolExecutionContext
     } = options ?? {};
     this.logger.agentStart(query, this.model, {
       systemPromptSuffix,
@@ -1992,6 +1997,12 @@ ${JSON.stringify(jsonSchema, null, 2)}
 
 Respond ONLY with the JSON object, no additional text.`;
     }
+    const toolExecutionContext = {
+      page: this.page,
+      browserContext: this.browserContext,
+      createPage: this.createManagedPage.bind(this),
+      ...userToolExecutionContext
+    };
     try {
       const loopParams = {
         query: finalQuery,
@@ -2010,7 +2021,7 @@ Respond ONLY with the JSON object, no additional text.`;
         tools: this.tools,
         logger: this.logger,
         ...this.retryConfig && { retryConfig: this.retryConfig },
-        ...toolExecutionContext && { toolExecutionContext }
+        toolExecutionContext
       };
       const messages = await computerUseLoop(loopParams);
       const lastMessage = messages[messages.length - 1];
@@ -2028,8 +2039,43 @@ Respond ONLY with the JSON object, no additional text.`;
     } catch (error) {
       const duration = Date.now() - startTime;
       this.logger.agentError(query, error, duration);
+      await this.cleanupManagedPages();
       throw error;
     }
+  }
+  /**
+   * Creates a new page in the browser context with all init scripts applied.
+   * Pages created via this method are tracked and cleaned up on errors.
+   */
+  async createManagedPage() {
+    const newPage = await this.browserContext.newPage();
+    this.managedPages.add(newPage);
+    await newPage.addInitScript(() => {
+      Object.defineProperty(navigator, "webdriver", { get: () => void 0 });
+    });
+    for (const script of this.initScripts) {
+      await newPage.addInitScript(script);
+    }
+    newPage.on("close", () => {
+      this.managedPages.delete(newPage);
+    });
+    return newPage;
+  }
+  /**
+   * Closes all pages created via createPage() that are still open.
+   * Called automatically on execution errors.
+   */
+  async cleanupManagedPages() {
+    const closePromises = Array.from(this.managedPages).map(async (page) => {
+      try {
+        if (!page.isClosed()) {
+          await page.close();
+        }
+      } catch {
+      }
+    });
+    await Promise.all(closePromises);
+    this.managedPages.clear();
   }
   extractTextFromMessage(message) {
     if (typeof message.content === "string") {
