@@ -37,9 +37,50 @@ export type ComputerUseToolDef = ComputerToolDef | FunctionToolDef;
 
 /**
  * Runtime context passed to tools during execution
+ *
+ * Provides access to the browser infrastructure for tools that need to perform
+ * browser operations while leveraging the existing session configuration
+ * (proxies, anti-detection, cookies, etc.)
  */
 export interface ToolExecutionContext {
+  /**
+   * The main page being controlled by the agent
+   */
   page?: import("playwright").Page;
+
+  /**
+   * The browser context containing the session
+   * Useful for advanced operations like accessing existing pages or cookies
+   */
+  browserContext?: import("playwright").BrowserContext;
+
+  /**
+   * Creates a new page in the existing browser context with all
+   * infrastructure applied (anti-detection scripts, proxy config, etc.)
+   *
+   * @example
+   * ```typescript
+   * async call(params: MyToolParams, ctx?: ToolExecutionContext): Promise<ToolResult> {
+   *   if (!ctx?.createPage) {
+   *     return { error: 'Browser context not available' };
+   *   }
+   *
+   *   const page = await ctx.createPage();
+   *   try {
+   *     await page.goto(url, { waitUntil: 'domcontentloaded' });
+   *     // ... do work
+   *     return { output: 'Success' };
+   *   } finally {
+   *     await page.close();
+   *   }
+   * }
+   * ```
+   */
+  createPage?: () => Promise<import("playwright").Page>;
+
+  /**
+   * Allow additional custom properties for extensibility
+   */
   [key: string]: unknown;
 }
 

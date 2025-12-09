@@ -1,6 +1,6 @@
 import { z } from "zod";
 import zodToJsonSchema from "zod-to-json-schema";
-import type { Page } from "playwright";
+import type { Page, BrowserContext } from "playwright";
 import { computerUseLoop } from "./loop";
 import { SignalBus, type SignalEventPayloadMap } from "./signals/bus";
 import type { ControlSignal, SignalEvent } from "./signals/bus";
@@ -88,12 +88,15 @@ export class ComputerUseAgent {
   private apiKey: string;
   private model: string;
   private page: Page;
+  private browserContext: BrowserContext;
   private signalBus: SignalBus;
   private executionConfig?: ExecutionConfig;
   private playwrightCapabilities: PlaywrightCapabilityDef[];
   private tools: ComputerUseTool[];
   private logger: Logger;
   private retryConfig: RetryConfig | undefined;
+  private managedPages: Set<Page> = new Set();
+  private initScripts: Array<() => void> = [];
 
   /** Expose control-flow signals */
   public readonly controller: AgentController;
@@ -120,6 +123,7 @@ export class ComputerUseAgent {
     tools = [],
     logger,
     retryConfig,
+    initScripts = [],
   }: {
     /** Anthropic API key for authentication */
     apiKey: string;
@@ -155,21 +159,26 @@ export class ComputerUseAgent {
      * Controls retry behavior for connection errors
      */
     retryConfig?: RetryConfig;
+    /**
+     * Init scripts to apply to pages created via createPage()
+     * These are added in addition to the default anti-detection scripts
+     */
+    initScripts?: Array<() => void>;
   }) {
     this.apiKey = apiKey;
     this.model = model;
     this.page = page;
+    this.browserContext = page.context();
     this.executionConfig = executionConfig ?? {};
     this.playwrightCapabilities = playwrightCapabilities;
     this.tools = tools;
     this.logger = logger ?? new NoOpLogger();
     this.retryConfig = retryConfig;
+    this.initScripts = initScripts;
 
-    // NEW: create the signal bus + controller up-front so callers can pause *during* first run
     this.signalBus = new SignalBus();
     this.controller = new AgentControllerImpl(this.signalBus);
 
-    // Set up signal logging
     this.controller.on("onPause", (data) => {
       this.logger.signal("pause", data.step);
     });
@@ -255,10 +264,9 @@ export class ComputerUseAgent {
       thinkingBudget,
       maxTokens,
       onlyNMostRecentImages,
-      toolExecutionContext,
+      toolExecutionContext: userToolExecutionContext,
     } = options ?? {};
 
-    // Log agent start
     this.logger.agentStart(query, this.model, {
       systemPromptSuffix,
       thinkingBudget,
@@ -267,7 +275,6 @@ export class ComputerUseAgent {
       schema: schema ? "provided" : "none",
     });
 
-    // Prepare query with schema instructions if schema is provided
     let finalQuery = query;
     if (schema) {
       const jsonSchema = zodToJsonSchema(schema);
@@ -281,8 +288,14 @@ ${JSON.stringify(jsonSchema, null, 2)}
 Respond ONLY with the JSON object, no additional text.`;
     }
 
+    const toolExecutionContext: ToolExecutionContext = {
+      page: this.page,
+      browserContext: this.browserContext,
+      createPage: this.createManagedPage.bind(this),
+      ...userToolExecutionContext,
+    };
+
     try {
-      // Execute the computer use loop
       const loopParams = {
         query: finalQuery,
         apiKey: this.apiKey,
@@ -301,7 +314,7 @@ Respond ONLY with the JSON object, no additional text.`;
         tools: this.tools,
         logger: this.logger,
         ...(this.retryConfig && { retryConfig: this.retryConfig }),
-        ...(toolExecutionContext && { toolExecutionContext }),
+        toolExecutionContext,
       };
       const messages = await computerUseLoop(loopParams);
 
@@ -312,24 +325,62 @@ Respond ONLY with the JSON object, no additional text.`;
 
       const response = this.extractTextFromMessage(lastMessage);
 
-      // Log completion
       const duration = Date.now() - startTime;
       this.logger.agentComplete(query, duration, messages.length);
 
-      // If no schema provided, return string response
       if (!schema) {
         return response as T;
       }
 
-      // Parse and validate structured response
       const parsed = this.parseJsonResponse(response);
       return schema.parse(parsed);
     } catch (error) {
-      // Log error
       const duration = Date.now() - startTime;
       this.logger.agentError(query, error as Error, duration);
+      await this.cleanupManagedPages();
       throw error;
     }
+  }
+
+  /**
+   * Creates a new page in the browser context with all init scripts applied.
+   * Pages created via this method are tracked and cleaned up on errors.
+   */
+  private async createManagedPage(): Promise<Page> {
+    const newPage = await this.browserContext.newPage();
+    this.managedPages.add(newPage);
+
+    await newPage.addInitScript(() => {
+      Object.defineProperty(navigator, "webdriver", { get: () => undefined });
+    });
+
+    for (const script of this.initScripts) {
+      await newPage.addInitScript(script);
+    }
+
+    newPage.on("close", () => {
+      this.managedPages.delete(newPage);
+    });
+
+    return newPage;
+  }
+
+  /**
+   * Closes all pages created via createPage() that are still open.
+   * Called automatically on execution errors.
+   */
+  private async cleanupManagedPages(): Promise<void> {
+    const closePromises = Array.from(this.managedPages).map(async (page) => {
+      try {
+        if (!page.isClosed()) {
+          await page.close();
+        }
+      } catch {
+        // Page may already be closed
+      }
+    });
+    await Promise.all(closePromises);
+    this.managedPages.clear();
   }
 
   private extractTextFromMessage(message: {
