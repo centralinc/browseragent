@@ -272,9 +272,23 @@ ${capabilityDocs}`,
     // Log LLM response
     logger.llmResponse(response.stop_reason ?? "unknown", stepIndex, loggableContent);
 
+    // Ensure proper block ordering for extended thinking:
+    // thinking/redacted_thinking blocks must come first in assistant messages
+    const orderedContent = [...responseParams].sort((a, b) => {
+      const order: Record<string, number> = {
+        thinking: 0,
+        redacted_thinking: 1,
+        text: 2,
+        tool_use: 3,
+      };
+      const aOrder = order[a.type] ?? 99;
+      const bOrder = order[b.type] ?? 99;
+      return aOrder - bOrder;
+    });
+
     messages.push({
       role: "assistant",
-      content: responseParams,
+      content: orderedContent,
     });
 
     if (response.stop_reason === "end_turn") {
