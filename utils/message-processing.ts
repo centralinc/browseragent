@@ -16,8 +16,17 @@ export function responseToParams(response: BetaMessage): BetaContentBlock[] {
       };
     }
     if (block.type === "thinking") {
-      const { thinking, signature, ...rest } = block;
-      return { ...rest, thinking, signature: signature || "" };
+      return {
+        type: "thinking" as const,
+        thinking: block.thinking,
+        signature: block.signature,
+      };
+    }
+    if (block.type === "redacted_thinking") {
+      return {
+        type: "redacted_thinking" as const,
+        data: block.data,
+      };
     }
     return block as BetaContentBlock;
   });

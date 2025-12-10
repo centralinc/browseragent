@@ -47,15 +47,15 @@ export interface BetaToolUseBlock {
 
 export interface BetaThinkingBlock {
   type: "thinking";
-  thinking:
-    | {
-        type: "enabled";
-        budget_tokens: number;
-      }
-    | {
-        type: "disabled";
-      };
-  signature?: string;
+  thinking: string;
+  signature: string;
+  id?: string;
+  cache_control?: { type: "ephemeral" };
+}
+
+export interface BetaRedactedThinkingBlock {
+  type: "redacted_thinking";
+  data: string;
   id?: string;
   cache_control?: { type: "ephemeral" };
 }
@@ -74,4 +74,5 @@ export type BetaLocalContentBlock =
   | BetaImageBlock
   | BetaToolUseBlock
   | BetaThinkingBlock
+  | BetaRedactedThinkingBlock
   | BetaToolResultBlock;
