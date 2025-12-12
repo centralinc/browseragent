@@ -1,5 +1,11 @@
 # @centralinc/browseragent
 
+## 1.9.2
+
+### Patch Changes
+
+- d87ac39: Add workflow_dispatch trigger to release workflow for manual release triggering
+
 ## 1.9.1
 
 ### Patch Changes
