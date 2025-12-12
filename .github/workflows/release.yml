@@ -4,9 +4,11 @@ on:
   push:
     branches:
       - main
+  workflow_dispatch:
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
 
 permissions:
   contents: write
@@ -65,6 +67,9 @@ jobs:
               echo "💾 Committing version changes..."
               git add .
               git commit -m "chore: release package [skip ci]"
+              
+              # Pull with rebase to avoid non-fast-forward rejections
+              git pull --rebase origin main
               git push
             fi
             
