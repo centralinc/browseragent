@@ -176,71 +176,72 @@ export function truncateMessageHistory(
  * and preserve thinking blocks for extended thinking compatibility
  * This prevents the "unexpected tool_use_id found in tool_result blocks" error
  *
+ * IMPORTANT: The API requires that each tool_result must have its corresponding tool_use
+ * in the IMMEDIATELY PREVIOUS message, not just anywhere in history.
+ *
  * @param messages - Array of conversation messages
  */
 export function cleanMessageHistory(messages: BetaMessageParam[]): void {
-  const toolUseIds = new Set<string>();
+  // Process messages in order to maintain tool_use/tool_result pairing
+  for (let i = 0; i < messages.length; i++) {
+    const message = messages[i];
+    if (!message || !Array.isArray(message.content)) continue;
 
-  // First pass: collect all tool_use IDs
-  for (const message of messages) {
-    if (Array.isArray(message.content)) {
-      for (const block of message.content) {
-        if (
-          typeof block === "object" &&
-          block.type === "tool_use" &&
-          block.id
-        ) {
-          toolUseIds.add(block.id);
+    // For user messages with tool_result blocks, verify the previous message has matching tool_use
+    if (message.role === "user") {
+      const prevMessage = i > 0 ? messages[i - 1] : null;
+      const prevToolUseIds = new Set<string>();
+
+      // Collect tool_use IDs from the immediately previous message
+      if (prevMessage?.role === "assistant" && Array.isArray(prevMessage.content)) {
+        for (const block of prevMessage.content) {
+          if (
+            typeof block === "object" &&
+            block.type === "tool_use" &&
+            block.id
+          ) {
+            prevToolUseIds.add(block.id);
+          }
         }
       }
-    }
-  }
 
-  // Second pass: clean messages and preserve structure
-  for (const message of messages) {
-    if (Array.isArray(message.content)) {
-      let cleanedContent = message.content.filter((block) => {
+      // Filter out tool_result blocks that don't have a corresponding tool_use in the previous message
+      message.content = message.content.filter((block) => {
         if (
           typeof block === "object" &&
           block.type === "tool_result" &&
           block.tool_use_id
         ) {
-          return toolUseIds.has(block.tool_use_id);
+          return prevToolUseIds.has(block.tool_use_id);
         }
         return true;
       });
+    }
 
-      // Ensure proper ordering for assistant messages with thinking:
-      // 1. thinking/redacted_thinking blocks first
-      // 2. text blocks
-      // 3. tool_use blocks
-      // 4. tool_result blocks
-      if (message.role === "assistant") {
-        const thinkingBlocks = cleanedContent.filter(
-          (block) =>
-            typeof block === "object" &&
-            (block.type === "thinking" || block.type === "redacted_thinking"),
-        );
-        const textBlocks = cleanedContent.filter(
-          (block) => typeof block === "object" && block.type === "text",
-        );
-        const toolUseBlocks = cleanedContent.filter(
-          (block) => typeof block === "object" && block.type === "tool_use",
-        );
-        const toolResultBlocks = cleanedContent.filter(
-          (block) => typeof block === "object" && block.type === "tool_result",
-        );
+    // Ensure proper ordering for assistant messages:
+    // 1. thinking/redacted_thinking blocks first
+    // 2. text blocks
+    // 3. tool_use blocks
+    // Note: tool_result blocks should never be in assistant messages
+    if (message.role === "assistant") {
+      const thinkingBlocks = message.content.filter(
+        (block) =>
+          typeof block === "object" &&
+          (block.type === "thinking" || block.type === "redacted_thinking"),
+      );
+      const textBlocks = message.content.filter(
+        (block) => typeof block === "object" && block.type === "text",
+      );
+      const toolUseBlocks = message.content.filter(
+        (block) => typeof block === "object" && block.type === "tool_use",
+      );
 
-        // Reconstruct with proper order
-        cleanedContent = [
-          ...thinkingBlocks,
-          ...textBlocks,
-          ...toolUseBlocks,
-          ...toolResultBlocks,
-        ];
-      }
-
-      message.content = cleanedContent;
+      // Reconstruct with proper order
+      message.content = [
+        ...thinkingBlocks,
+        ...textBlocks,
+        ...toolUseBlocks,
+      ];
     }
   }
 }
@@ -252,6 +253,9 @@ export function cleanMessageHistory(messages: BetaMessageParam[]): void {
  * When thinking is enabled, the API requires that every assistant message must start with
  * a thinking or redacted_thinking block. This function filters out any assistant messages
  * that don't meet this requirement.
+ *
+ * Additionally, when removing assistant messages, we also need to remove the corresponding
+ * user message that follows (if any) to maintain proper conversation flow.
  *
  * @param messages - Array of conversation messages
  * @param thinkingEnabled - Whether extended thinking is enabled
@@ -265,7 +269,7 @@ export function ensureThinkingBlocksForExtendedThinking(
   }
 
   // Filter out assistant messages that don't start with a thinking block
-  // Keep user messages as they don't need thinking blocks
+  // Also remove the following user message to maintain conversation flow
   const indicesToRemove: number[] = [];
   
   for (let i = 0; i < messages.length; i++) {
@@ -279,6 +283,12 @@ export function ensureThinkingBlocksForExtendedThinking(
       
       if (!hasThinkingBlock) {
         indicesToRemove.push(i);
+        
+        // Also mark the following user message for removal (if it exists)
+        // This maintains proper conversation flow (user -> assistant -> user -> assistant)
+        if (i + 1 < messages.length && messages[i + 1]?.role === "user") {
+          indicesToRemove.push(i + 1);
+        }
       }
     }
   }

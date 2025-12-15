@@ -41,12 +41,18 @@ async function main() {
   });
   console.log("   ✓ Agent created\n");
 
-  console.log("4. Executing task with thinkingBudget...\n");
+  console.log("4. Executing task with thinkingBudget (with multiple tool uses)...\n");
   console.log("=" .repeat(60));
 
   try {
     const result = await agent.execute(
-      "Look at this page and tell me: What is the title of the page and what is the main heading? Provide a brief summary.",
+      `Look at this page and perform the following steps:
+      1. Take a screenshot to see the current page
+      2. Scroll down to see if there's more content
+      3. Take another screenshot
+      4. Tell me: What is the title of the page and what is the main heading? Provide a brief summary.
+      
+      This task requires multiple tool uses to test message history management with thinking blocks.`,
       undefined,
       {
         thinkingBudget: 2048,
@@ -57,7 +63,7 @@ async function main() {
     console.log("=" .repeat(60));
     console.log("\n5. Result:\n");
     console.log(result);
-    console.log("\n✅ Extended thinking test PASSED!");
+    console.log("\n✅ Extended thinking test with multiple tool uses PASSED!");
   } catch (error) {
     console.log("=" .repeat(60));
     console.error("\n❌ Extended thinking test FAILED!");
@@ -67,6 +73,10 @@ async function main() {
       if (error.message.includes("thinking")) {
         console.error("\n  This appears to be a thinking block handling issue.");
         console.error("  The fix may not be complete.");
+      }
+      if (error.message.includes("tool_use_id") || error.message.includes("tool_result")) {
+        console.error("\n  This appears to be a tool_use/tool_result pairing issue.");
+        console.error("  The message history cleanup may need adjustment.");
       }
     } else {
       console.error(error);
