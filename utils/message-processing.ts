@@ -244,3 +244,50 @@ export function cleanMessageHistory(messages: BetaMessageParam[]): void {
     }
   }
 }
+
+/**
+ * Ensure all assistant messages start with thinking blocks when extended thinking is enabled
+ * This prevents the 400 error: "Expected `thinking` or `redacted_thinking`, but found `text`"
+ * 
+ * When thinking is enabled, the API requires that every assistant message must start with
+ * a thinking or redacted_thinking block. This function filters out any assistant messages
+ * that don't meet this requirement.
+ *
+ * @param messages - Array of conversation messages
+ * @param thinkingEnabled - Whether extended thinking is enabled
+ */
+export function ensureThinkingBlocksForExtendedThinking(
+  messages: BetaMessageParam[],
+  thinkingEnabled: boolean,
+): void {
+  if (!thinkingEnabled) {
+    return;
+  }
+
+  // Filter out assistant messages that don't start with a thinking block
+  // Keep user messages as they don't need thinking blocks
+  const indicesToRemove: number[] = [];
+  
+  for (let i = 0; i < messages.length; i++) {
+    const message = messages[i];
+    if (message?.role === "assistant" && Array.isArray(message.content)) {
+      const firstBlock = message.content[0];
+      const hasThinkingBlock = 
+        firstBlock &&
+        typeof firstBlock === "object" &&
+        (firstBlock.type === "thinking" || firstBlock.type === "redacted_thinking");
+      
+      if (!hasThinkingBlock) {
+        indicesToRemove.push(i);
+      }
+    }
+  }
+
+  // Remove messages in reverse order to maintain correct indices
+  for (let i = indicesToRemove.length - 1; i >= 0; i--) {
+    const index = indicesToRemove[i];
+    if (index !== undefined) {
+      messages.splice(index, 1);
+    }
+  }
+}
