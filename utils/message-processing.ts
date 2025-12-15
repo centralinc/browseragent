@@ -247,57 +247,60 @@ export function cleanMessageHistory(messages: BetaMessageParam[]): void {
 }
 
 /**
- * Ensure all assistant messages start with thinking blocks when extended thinking is enabled
+ * Add placeholder thinking block to response when extended thinking is enabled but Claude didn't emit one
  * This prevents the 400 error: "Expected `thinking` or `redacted_thinking`, but found `text`"
  * 
  * When thinking is enabled, the API requires that every assistant message must start with
- * a thinking or redacted_thinking block. This function filters out any assistant messages
- * that don't meet this requirement.
+ * a thinking or redacted_thinking block. If Claude's response doesn't include one, we add
+ * a placeholder by reusing the most recent thinking block from history.
  *
- * Additionally, when removing assistant messages, we also need to remove the corresponding
- * user message that follows (if any) to maintain proper conversation flow.
+ * This function modifies the responseParams array in place by prepending a thinking block
+ * if one is missing.
  *
- * @param messages - Array of conversation messages
+ * @param responseParams - The content blocks from Claude's response
+ * @param messages - Message history to search for previous thinking blocks
  * @param thinkingEnabled - Whether extended thinking is enabled
  */
-export function ensureThinkingBlocksForExtendedThinking(
+export function ensureThinkingBlockForResponse(
+  responseParams: BetaContentBlock[],
   messages: BetaMessageParam[],
   thinkingEnabled: boolean,
 ): void {
-  if (!thinkingEnabled) {
+  if (!thinkingEnabled || responseParams.length === 0) {
     return;
   }
 
-  // Filter out assistant messages that don't start with a thinking block
-  // Also remove the following user message to maintain conversation flow
-  const indicesToRemove: number[] = [];
-  
-  for (let i = 0; i < messages.length; i++) {
-    const message = messages[i];
-    if (message?.role === "assistant" && Array.isArray(message.content)) {
-      const firstBlock = message.content[0];
-      const hasThinkingBlock = 
-        firstBlock &&
-        typeof firstBlock === "object" &&
-        (firstBlock.type === "thinking" || firstBlock.type === "redacted_thinking");
-      
-      if (!hasThinkingBlock) {
-        indicesToRemove.push(i);
-        
-        // Also mark the following user message for removal (if it exists)
-        // This maintains proper conversation flow (user -> assistant -> user -> assistant)
-        if (i + 1 < messages.length && messages[i + 1]?.role === "user") {
-          indicesToRemove.push(i + 1);
-        }
+  // Check if response already has a thinking block at the start
+  const firstBlock = responseParams[0];
+  const hasThinkingBlock = 
+    firstBlock &&
+    (firstBlock.type === "thinking" || firstBlock.type === "redacted_thinking");
+
+  if (hasThinkingBlock) {
+    return; // Response already has thinking block
+  }
+
+  // Claude didn't emit a thinking block - find the most recent one from history
+  let placeholderThinking: BetaContentBlock | null = null;
+
+  for (let i = messages.length - 1; i >= 0; i--) {
+    const msg = messages[i];
+    if (msg?.role === "assistant" && Array.isArray(msg.content)) {
+      const thinkingBlock = msg.content.find(
+        (block): block is BetaContentBlock =>
+          typeof block === "object" &&
+          (block.type === "thinking" || block.type === "redacted_thinking"),
+      );
+      if (thinkingBlock) {
+        // Clone the thinking block to avoid mutating the original
+        placeholderThinking = { ...thinkingBlock };
+        break;
       }
     }
   }
 
-  // Remove messages in reverse order to maintain correct indices
-  for (let i = indicesToRemove.length - 1; i >= 0; i--) {
-    const index = indicesToRemove[i];
-    if (index !== undefined) {
-      messages.splice(index, 1);
-    }
+  // Prepend the placeholder thinking block if we found one
+  if (placeholderThinking) {
+    responseParams.unshift(placeholderThinking);
   }
 }

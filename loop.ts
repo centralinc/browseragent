@@ -17,7 +17,7 @@ import {
   injectPromptCaching,
   truncateMessageHistory,
   cleanMessageHistory,
-  ensureThinkingBlocksForExtendedThinking,
+  ensureThinkingBlockForResponse,
   PROMPT_CACHING_BETA_FLAG,
 } from "./utils/message-processing";
 import { makeApiToolResult } from "./utils/tool-results";
@@ -220,10 +220,6 @@ ${capabilityDocs}`,
     // Clean message history to ensure tool_use and tool_result blocks are properly paired
     cleanMessageHistory(messages);
 
-    // Ensure all assistant messages have thinking blocks when extended thinking is enabled
-    // This prevents 400 errors from the API
-    ensureThinkingBlocksForExtendedThinking(messages, !!thinkingBudget);
-
     if (onlyNMostRecentImages) {
       maybeFilterToNMostRecentImages(
         messages,
@@ -255,6 +251,10 @@ ${capabilityDocs}`,
 
 
     const responseParams = responseToParams(response);
+
+    // Ensure response has a thinking block when extended thinking is enabled
+    // This prevents 400 errors on the next API call
+    ensureThinkingBlockForResponse(responseParams, messages, !!thinkingBudget);
 
     const loggableContent = responseParams.map((block) => {
       if (block.type === "tool_use") {
