@@ -916,49 +916,46 @@ function truncateMessageHistory(messages, maxMessages = 20, preserveSystemMessag
   }
 }
 function cleanMessageHistory(messages) {
-  const toolUseIds = /* @__PURE__ */ new Set();
-  for (const message of messages) {
-    if (Array.isArray(message.content)) {
-      for (const block of message.content) {
-        if (typeof block === "object" && block.type === "tool_use" && block.id) {
-          toolUseIds.add(block.id);
+  for (let i = 0; i < messages.length; i++) {
+    const message = messages[i];
+    if (!message || !Array.isArray(message.content)) continue;
+    if (message.role === "user") {
+      const prevMessage = i > 0 ? messages[i - 1] : null;
+      const prevToolUseIds = /* @__PURE__ */ new Set();
+      if ((prevMessage == null ? void 0 : prevMessage.role) === "assistant" && Array.isArray(prevMessage.content)) {
+        for (const block of prevMessage.content) {
+          if (typeof block === "object" && block.type === "tool_use" && block.id) {
+            prevToolUseIds.add(block.id);
+          }
         }
       }
-    }
-  }
-  for (const message of messages) {
-    if (Array.isArray(message.content)) {
-      let cleanedContent = message.content.filter((block) => {
+      message.content = message.content.filter((block) => {
         if (typeof block === "object" && block.type === "tool_result" && block.tool_use_id) {
-          return toolUseIds.has(block.tool_use_id);
+          return prevToolUseIds.has(block.tool_use_id);
         }
         return true;
       });
-      if (message.role === "assistant") {
-        const thinkingBlocks = cleanedContent.filter(
-          (block) => typeof block === "object" && (block.type === "thinking" || block.type === "redacted_thinking")
-        );
-        const textBlocks = cleanedContent.filter(
-          (block) => typeof block === "object" && block.type === "text"
-        );
-        const toolUseBlocks = cleanedContent.filter(
-          (block) => typeof block === "object" && block.type === "tool_use"
-        );
-        const toolResultBlocks = cleanedContent.filter(
-          (block) => typeof block === "object" && block.type === "tool_result"
-        );
-        cleanedContent = [
-          ...thinkingBlocks,
-          ...textBlocks,
-          ...toolUseBlocks,
-          ...toolResultBlocks
-        ];
-      }
-      message.content = cleanedContent;
+    }
+    if (message.role === "assistant") {
+      const thinkingBlocks = message.content.filter(
+        (block) => typeof block === "object" && (block.type === "thinking" || block.type === "redacted_thinking")
+      );
+      const textBlocks = message.content.filter(
+        (block) => typeof block === "object" && block.type === "text"
+      );
+      const toolUseBlocks = message.content.filter(
+        (block) => typeof block === "object" && block.type === "tool_use"
+      );
+      message.content = [
+        ...thinkingBlocks,
+        ...textBlocks,
+        ...toolUseBlocks
+      ];
     }
   }
 }
 function ensureThinkingBlocksForExtendedThinking(messages, thinkingEnabled) {
+  var _a;
   if (!thinkingEnabled) {
     return;
   }
@@ -970,6 +967,9 @@ function ensureThinkingBlocksForExtendedThinking(messages, thinkingEnabled) {
       const hasThinkingBlock = firstBlock && typeof firstBlock === "object" && (firstBlock.type === "thinking" || firstBlock.type === "redacted_thinking");
       if (!hasThinkingBlock) {
         indicesToRemove.push(i);
+        if (i + 1 < messages.length && ((_a = messages[i + 1]) == null ? void 0 : _a.role) === "user") {
+          indicesToRemove.push(i + 1);
+        }
       }
     }
   }
