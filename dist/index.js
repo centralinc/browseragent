@@ -954,30 +954,30 @@ function cleanMessageHistory(messages) {
     }
   }
 }
-function ensureThinkingBlocksForExtendedThinking(messages, thinkingEnabled) {
-  var _a;
-  if (!thinkingEnabled) {
+function ensureThinkingBlockForResponse(responseParams, messages, thinkingEnabled) {
+  if (!thinkingEnabled || responseParams.length === 0) {
     return;
   }
-  const indicesToRemove = [];
-  for (let i = 0; i < messages.length; i++) {
-    const message = messages[i];
-    if ((message == null ? void 0 : message.role) === "assistant" && Array.isArray(message.content)) {
-      const firstBlock = message.content[0];
-      const hasThinkingBlock = firstBlock && typeof firstBlock === "object" && (firstBlock.type === "thinking" || firstBlock.type === "redacted_thinking");
-      if (!hasThinkingBlock) {
-        indicesToRemove.push(i);
-        if (i + 1 < messages.length && ((_a = messages[i + 1]) == null ? void 0 : _a.role) === "user") {
-          indicesToRemove.push(i + 1);
-        }
+  const firstBlock = responseParams[0];
+  const hasThinkingBlock = firstBlock && (firstBlock.type === "thinking" || firstBlock.type === "redacted_thinking");
+  if (hasThinkingBlock) {
+    return;
+  }
+  let placeholderThinking = null;
+  for (let i = messages.length - 1; i >= 0; i--) {
+    const msg = messages[i];
+    if ((msg == null ? void 0 : msg.role) === "assistant" && Array.isArray(msg.content)) {
+      const thinkingBlock = msg.content.find(
+        (block) => typeof block === "object" && (block.type === "thinking" || block.type === "redacted_thinking")
+      );
+      if (thinkingBlock) {
+        placeholderThinking = { ...thinkingBlock };
+        break;
       }
     }
   }
-  for (let i = indicesToRemove.length - 1; i >= 0; i--) {
-    const index = indicesToRemove[i];
-    if (index !== void 0) {
-      messages.splice(index, 1);
-    }
+  if (placeholderThinking) {
+    responseParams.unshift(placeholderThinking);
   }
 }
 
@@ -1582,7 +1582,6 @@ ${capabilityDocs}`
     }
     truncateMessageHistory(messages, 15);
     cleanMessageHistory(messages);
-    ensureThinkingBlocksForExtendedThinking(messages, !!thinkingBudget);
     if (onlyNMostRecentImages) {
       maybeFilterToNMostRecentImages(
         messages,
@@ -1609,6 +1608,7 @@ ${capabilityDocs}`
       logger
     );
     const responseParams = responseToParams(response);
+    ensureThinkingBlockForResponse(responseParams, messages, !!thinkingBudget);
     const loggableContent = responseParams.map((block) => {
       if (block.type === "tool_use") {
         console.log(`
