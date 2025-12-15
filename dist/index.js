@@ -958,6 +958,28 @@ function cleanMessageHistory(messages) {
     }
   }
 }
+function ensureThinkingBlocksForExtendedThinking(messages, thinkingEnabled) {
+  if (!thinkingEnabled) {
+    return;
+  }
+  const indicesToRemove = [];
+  for (let i = 0; i < messages.length; i++) {
+    const message = messages[i];
+    if ((message == null ? void 0 : message.role) === "assistant" && Array.isArray(message.content)) {
+      const firstBlock = message.content[0];
+      const hasThinkingBlock = firstBlock && typeof firstBlock === "object" && (firstBlock.type === "thinking" || firstBlock.type === "redacted_thinking");
+      if (!hasThinkingBlock) {
+        indicesToRemove.push(i);
+      }
+    }
+  }
+  for (let i = indicesToRemove.length - 1; i >= 0; i--) {
+    const index = indicesToRemove[i];
+    if (index !== void 0) {
+      messages.splice(index, 1);
+    }
+  }
+}
 
 // utils/tool-results.ts
 function makeApiToolResult(result, toolUseId) {
@@ -1560,6 +1582,7 @@ ${capabilityDocs}`
     }
     truncateMessageHistory(messages, 15);
     cleanMessageHistory(messages);
+    ensureThinkingBlocksForExtendedThinking(messages, !!thinkingBudget);
     if (onlyNMostRecentImages) {
       maybeFilterToNMostRecentImages(
         messages,

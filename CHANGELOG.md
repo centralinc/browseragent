@@ -1,5 +1,11 @@
 # @centralinc/browseragent
 
+## 1.9.3
+
+### Patch Changes
+
+- d1e5842: Fix extended thinking 400 error by ensuring all assistant messages start with thinking blocks when thinkingBudget is enabled
+
 ## 1.9.2
 
 ### Patch Changes
