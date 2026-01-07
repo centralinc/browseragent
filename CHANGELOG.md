@@ -1,5 +1,11 @@
 # @centralinc/browseragent
 
+## 1.9.6
+
+### Patch Changes
+
+- 8b06340: Add missing symbolic key mappings to KeyboardUtils to fix "Unknown key" errors when using keys like `minus`, `plus`, `slash`, etc. in keyboard actions.
+
 ## 1.9.5
 
 ### Patch Changes

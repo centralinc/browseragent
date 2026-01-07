@@ -346,7 +346,23 @@ KeyboardUtils.keyMap = {
   f9: "F9",
   f10: "F10",
   f11: "F11",
-  f12: "F12"
+  f12: "F12",
+  // Symbolic keys
+  minus: "-",
+  plus: "+",
+  equal: "=",
+  equals: "=",
+  period: ".",
+  dot: ".",
+  comma: ",",
+  slash: "/",
+  backslash: "\\",
+  bracketleft: "[",
+  bracketright: "]",
+  semicolon: ";",
+  quote: "'",
+  backquote: "`",
+  tilde: "~"
 };
 
 // tools/types/base.ts
